@@ -5,8 +5,12 @@
 - La aplicación está implementada en `index.html`.
 - La pantalla principal usa el estilo clásico con paleta azul clara.
 - Campos de gastos actuales: `Almuerzo`, `Pan`, `Comida` y `Cena`.
+- Cada gasto admite hasta 3 compradores; el importe pagado se reparte entre ellos.
 - `Gasto mínimo` es editable y está separado de los gastos.
 - Hay contador grande de compañeros presentes.
+- Hay panel de Supabase para guardar y cargar guardias compartidas.
+- Hay calendario de guardias cada 5 días usando una fecha de referencia editable.
+- Hay historial de guardias guardadas en Supabase.
 - Hay una `Pantalla de gastos` para abrir una vista limpia de liquidaciones y hacer captura.
 
 ## Compañeros cargados
@@ -17,6 +21,7 @@ Acedo, Almela, Blesa, Chema, Espín, Galisteo, Migue, Noelia, Laki, Vladi, Poved
 
 - Solo entran en cálculos los compañeros marcados como presentes.
 - El gasto de cada concepto se reparte entre quienes tengan marcado ese concepto.
+- Si un gasto tiene varios compradores, la parte pagada se divide entre esos compradores.
 - El `Pan` tiene columna propia y solo lo pagan quienes lo marcan.
 - Si alguien solo marca `Pan`, también paga el `Gasto mínimo`.
 - El gasto mínimo se aplica a quien está presente pero no entra a `Almuerzo`, `Comida` ni `Cena`.

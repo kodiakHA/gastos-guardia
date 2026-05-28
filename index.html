@@ -99,6 +99,16 @@
       gap: 14px;
     }
 
+    .calendar-panel {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .history-panel {
+      grid-column: 3;
+      grid-row: 2;
+    }
+
     header {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(240px, 320px) auto;
@@ -267,6 +277,120 @@
       grid-template-columns: minmax(92px, 1fr) 96px minmax(120px, 1fr);
       gap: 8px;
       align-items: end;
+    }
+
+    .buyer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .buyer-grid label {
+      min-width: 0;
+    }
+
+    .stacked-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .status-line {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: .86rem;
+      line-height: 1.35;
+    }
+
+    .status-line.ok { color: var(--ok); }
+    .status-line.danger { color: var(--danger); }
+
+    .config-grid {
+      display: grid;
+      gap: 9px;
+    }
+
+    .calendar-toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .calendar-label,
+    .calendar-day {
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      font-size: .78rem;
+      text-align: center;
+    }
+
+    .calendar-label {
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .calendar-day {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 92%, white);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .calendar-day.is-empty {
+      border-color: transparent;
+      background: transparent;
+      cursor: default;
+    }
+
+    .calendar-day.is-duty {
+      border-color: var(--check);
+      background: color-mix(in srgb, var(--check) 16%, var(--panel));
+      color: var(--check);
+      font-weight: 700;
+    }
+
+    .calendar-day.is-selected {
+      outline: 3px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-color: var(--accent);
+    }
+
+    .history-list {
+      display: grid;
+      gap: 8px;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .history-item {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .history-item strong {
+      font-weight: 500;
+    }
+
+    .history-item span {
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.35;
     }
 
     .expense-name {
@@ -658,6 +782,12 @@
       .results-panel {
         grid-column: 1 / -1;
       }
+
+      .calendar-panel,
+      .history-panel {
+        grid-column: 1 / -1;
+        grid-row: auto;
+      }
     }
 
     @media (max-width: 780px) {
@@ -683,8 +813,13 @@
         grid-template-columns: 1fr 90px;
       }
 
-      .expense-row label:last-child {
+      .expense-row .buyer-grid {
         grid-column: 1 / -1;
+      }
+
+      .buyer-grid,
+      .calendar-toolbar {
+        grid-template-columns: 1fr;
       }
 
       .totals {
@@ -778,6 +913,15 @@
             <button class="tool-button primary" id="openCapture" type="button">Abrir liquidación</button>
           </div>
         </aside>
+
+        <div hidden>
+          <input id="supabaseUrl" type="hidden">
+          <input id="supabaseKey" type="hidden">
+          <button id="connectSupabase" type="button">Conectar</button>
+          <button id="saveGuard" type="button">Guardar guardia</button>
+          <button id="loadGuard" type="button">Cargar fecha</button>
+          <div id="syncStatus"></div>
+        </div>
       </div>
 
       <section class="panel">
@@ -811,6 +955,27 @@
         </div>
       </section>
 
+      <section class="panel calendar-panel">
+        <div class="panel-title">
+          <h2>Calendario de guardias</h2>
+        </div>
+        <div class="panel-body">
+          <div class="calendar-toolbar">
+            <label>
+              Guardia de referencia
+              <input id="cycleStart" type="date">
+            </label>
+            <label>
+              Mes
+              <input id="calendarMonth" type="month">
+            </label>
+            <button class="tool-button" id="todayGuard" type="button">Hoy</button>
+          </div>
+          <div class="calendar-grid" id="calendar"></div>
+          <div class="status-line" id="calendarNote"></div>
+        </div>
+      </section>
+
       <aside class="panel results-panel">
         <div class="panel-title">
           <h2>Resultado</h2>
@@ -832,6 +997,17 @@
           </div>
           <div class="notice" id="calcNote"></div>
           <div class="results" id="results"></div>
+        </div>
+      </aside>
+
+      <aside class="panel results-panel history-panel">
+        <div class="panel-title">
+          <h2>Historial</h2>
+        </div>
+        <div class="panel-body">
+          <div class="history-list" id="historyList">
+            <div class="notice">Conecta Supabase para ver las guardias guardadas.</div>
+          </div>
         </div>
       </aside>
     </section>
@@ -860,6 +1036,13 @@
       { key: "dinner", label: "Cena", meal: "dinner" }
     ];
 
+    const STORAGE_KEY = "pena-campanar-current-guard";
+    const SUPABASE_CONFIG_KEY = "pena-campanar-supabase";
+    const CYCLE_START_KEY = "pena-campanar-cycle-start";
+    const HISTORY_LIMIT = 12;
+    const DEFAULT_SUPABASE_URL = "https://fkwtwopvmvimskftyidg.supabase.co";
+    const DEFAULT_SUPABASE_KEY = "sb_publishable_vK7rcjE30eGUmRQCW2I-iQ_4jFUbOJe";
+
     const state = {
       people: [
         { name: "Acedo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
@@ -878,17 +1061,116 @@
         { name: "Mora", present: false, breakfast: false, bread: false, lunch: false, dinner: false }
       ],
       expenses: {
-        breakfast: { amount: 24, buyer: 0 },
-        bread: { amount: 8, buyer: 1 },
-        lunch: { amount: 70, buyer: 2 },
-        dinner: { amount: 42, buyer: 5 }
+        breakfast: { amount: 0, buyers: [0, -1, -1] },
+        bread: { amount: 0, buyers: [1] },
+        lunch: { amount: 0, buyers: [2, -1, -1] },
+        dinner: { amount: 0, buyers: [5, -1, -1] }
       },
       minimumCharge: 2
     };
 
+    let supabase = null;
+    let syncTimer = null;
+    let remoteUpdateInProgress = false;
+    let guardChannel = null;
+    const memoryStorage = {};
+
     const money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
     const bitcoinMoney = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
     const $ = (selector) => document.querySelector(selector);
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function readJson(key) {
+      try {
+        return JSON.parse(readStoredValue(key) || "null");
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function readStoredValue(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (error) {
+        return memoryStorage[key] || null;
+      }
+    }
+
+    function writeStoredValue(key, value) {
+      memoryStorage[key] = String(value);
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        return false;
+      }
+      return true;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function uniqueNumbers(values) {
+      return [...new Set(values.map(Number).filter(value => Number.isInteger(value) && value >= 0))];
+    }
+
+    function getExpenseBuyers(expense) {
+      if (Array.isArray(expense.buyers)) return expense.buyers;
+      return [Number.isInteger(expense.buyer) ? expense.buyer : -1, -1, -1];
+    }
+
+    function buyerSlotCount(typeKey) {
+      return typeKey === "bread" ? 1 : 3;
+    }
+
+    function normalizeStateShape() {
+      state.people = state.people.map(person => ({
+        name: person.name || "",
+        present: person.present === true,
+        breakfast: person.breakfast === true,
+        bread: person.bread === true,
+        lunch: person.lunch === true,
+        dinner: person.dinner === true
+      }));
+
+      expenseTypes.forEach(type => {
+        const expense = state.expenses[type.key] || { amount: 0, buyers: [-1, -1, -1] };
+        const slots = buyerSlotCount(type.key);
+        state.expenses[type.key] = {
+          amount: expense.amount ?? 0,
+          buyers: getExpenseBuyers(expense).slice(0, slots).concat([-1, -1, -1]).slice(0, slots)
+        };
+      });
+
+      if (state.minimumCharge === undefined) state.minimumCharge = 2;
+    }
+
+    function applySavedState(savedState) {
+      if (!savedState) return;
+      state.people = clone(savedState.people || state.people);
+      state.expenses = clone(savedState.expenses || state.expenses);
+      state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
+      normalizeStateShape();
+      $("#minimumCharge").value = state.minimumCharge;
+      rerender();
+    }
+
+    function currentPayload() {
+      normalizeStateShape();
+      return {
+        people: clone(state.people),
+        expenses: clone(state.expenses),
+        minimumCharge: state.minimumCharge
+      };
+    }
 
     function todayIso() {
       const date = new Date();
@@ -936,27 +1218,29 @@
       return state.people.map((person, index) => isPresent(person) && person[meal] ? index : -1).filter(index => index >= 0);
     }
 
-    function renderBuyerOptions(selected) {
+    function renderBuyerOptions(selected, allowEmpty = true) {
       const presentPeople = presentIndexes();
+      const emptyOption = allowEmpty ? `<option value="-1">Sin comprador</option>` : "";
       if (!presentPeople.length) {
         return `<option value="-1">Sin presentes</option>`;
       }
 
-      const selectedValue = presentPeople.includes(selected) ? selected : presentPeople[0];
-      return presentPeople.map(index => {
+      const selectedValue = presentPeople.includes(selected) ? selected : -1;
+      return `${emptyOption}${presentPeople.map(index => {
         const person = state.people[index];
         const safeName = person.name.trim() || `Compañero ${index + 1}`;
-        return `<option value="${index}" ${index === selectedValue ? "selected" : ""}>${safeName}</option>`;
-      }).join("");
+        return `<option value="${index}" ${index === selectedValue ? "selected" : ""}>${escapeHtml(safeName)}</option>`;
+      }).join("")}`;
     }
 
     function normalizeExpenseBuyers() {
       const presentPeople = presentIndexes();
       Object.values(state.expenses).forEach(expense => {
+        expense.buyers = getExpenseBuyers(expense).map(value => presentPeople.includes(Number(value)) ? Number(value) : -1);
         if (!presentPeople.length) {
-          expense.buyer = -1;
-        } else if (!presentPeople.includes(expense.buyer)) {
-          expense.buyer = presentPeople[0];
+          expense.buyers = [-1, -1, -1];
+        } else if (!expense.buyers.some(index => index >= 0)) {
+          expense.buyers[0] = presentPeople[0];
         }
       });
     }
@@ -972,10 +1256,14 @@
               Importe
               <input data-expense="${type.key}" data-field="amount" inputmode="decimal" value="${expense.amount}">
             </label>
-            <label>
-              Compró
-              <select data-expense="${type.key}" data-field="buyer">${renderBuyerOptions(expense.buyer)}</select>
-            </label>
+            <div class="buyer-grid" aria-label="Compradores de ${type.label}">
+              ${getExpenseBuyers(expense).slice(0, buyerSlotCount(type.key)).map((buyer, buyerSlot) => `
+                <label>
+                  ${buyerSlotCount(type.key) === 1 ? "Compró" : `Compró ${buyerSlot + 1}`}
+                  <select data-expense="${type.key}" data-field="buyers" data-buyer-slot="${buyerSlot}">${renderBuyerOptions(buyer)}</select>
+                </label>
+              `).join("")}
+            </div>
           </div>
         `;
       }).join("");
@@ -986,15 +1274,15 @@
         <tr class="${isPresent(person) ? "is-present" : "is-absent"}">
           <td>
             <div class="person-entry">
-              <input data-person="${index}" data-field="present" type="checkbox" ${isPresent(person) ? "checked" : ""} aria-label="${person.name} está presente en la guardia">
-              <input data-person="${index}" data-field="name" type="text" value="${person.name}" aria-label="Nombre del compañero ${index + 1}">
+              <input data-person="${index}" data-field="present" type="checkbox" ${isPresent(person) ? "checked" : ""} aria-label="${escapeHtml(person.name)} está presente en la guardia">
+              <input data-person="${index}" data-field="name" type="text" value="${escapeHtml(person.name)}" aria-label="Nombre del compañero ${index + 1}">
             </div>
           </td>
-          <td class="check-cell"><input data-person="${index}" data-field="breakfast" type="checkbox" ${person.breakfast ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${person.name} entra al almuerzo"></td>
-          <td class="check-cell"><input data-person="${index}" data-field="bread" type="checkbox" ${person.bread ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${person.name} entra al pan"></td>
-          <td class="check-cell"><input data-person="${index}" data-field="lunch" type="checkbox" ${person.lunch ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${person.name} entra a la comida"></td>
-          <td class="check-cell"><input data-person="${index}" data-field="dinner" type="checkbox" ${person.dinner ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${person.name} entra a la cena"></td>
-          <td class="check-cell"><button class="remove" type="button" data-remove="${index}" aria-label="Borrar ${person.name}">×</button></td>
+          <td class="check-cell"><input data-person="${index}" data-field="breakfast" type="checkbox" ${person.breakfast ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${escapeHtml(person.name)} entra al almuerzo"></td>
+          <td class="check-cell"><input data-person="${index}" data-field="bread" type="checkbox" ${person.bread ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${escapeHtml(person.name)} entra al pan"></td>
+          <td class="check-cell"><input data-person="${index}" data-field="lunch" type="checkbox" ${person.lunch ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${escapeHtml(person.name)} entra a la comida"></td>
+          <td class="check-cell"><input data-person="${index}" data-field="dinner" type="checkbox" ${person.dinner ? "checked" : ""} ${isPresent(person) ? "" : "disabled"} aria-label="${escapeHtml(person.name)} entra a la cena"></td>
+          <td class="check-cell"><button class="remove" type="button" data-remove="${index}" aria-label="Borrar ${escapeHtml(person.name)}">×</button></td>
         </tr>
       `).join("");
     }
@@ -1018,8 +1306,12 @@
           warnings.push("Marca al menos una persona presente para poder repartir los gastos.");
         }
 
-        if (state.people[expense.buyer] && isPresent(state.people[expense.buyer])) {
-          paid[expense.buyer] += amount;
+        const buyers = uniqueNumbers(getExpenseBuyers(expense)).filter(index => state.people[index] && isPresent(state.people[index]));
+        if (buyers.length) {
+          const paidShare = amount / buyers.length;
+          buyers.forEach(index => {
+            paid[index] += paidShare;
+          });
         } else if (amount) {
           warnings.push(`${type.label} tiene comprador no presente; selecciona una persona presente.`);
         }
@@ -1088,7 +1380,7 @@
       const settlementHtml = settlements.length
         ? settlements.map(payment => `
           <article class="settlement-card">
-            <strong>${payment.from} debe ${money.format(payment.amount)} a ${payment.to}</strong>
+            <strong>${escapeHtml(payment.from)} debe ${money.format(payment.amount)} a ${escapeHtml(payment.to)}</strong>
             <span>Pago directo para compensar compras y participación en comidas.</span>
           </article>
         `).join("")
@@ -1104,8 +1396,8 @@
         return `
           <article class="result-card">
             <div>
-              <div class="person-name">${person.name}</div>
-              <small>${purchased}Le toca ${money.format(person.gross)}. ${breakdown}</small>
+              <div class="person-name">${escapeHtml(person.name)}</div>
+              <small>${escapeHtml(purchased)}Le toca ${money.format(person.gross)}. ${escapeHtml(breakdown)}</small>
             </div>
             <div class="amount ${status}">${label}<br>${money.format(Math.abs(net))}</div>
           </article>
@@ -1128,7 +1420,7 @@
 
       const settlementLines = settlements.map(payment => `
         <article class="capture-item">
-          <strong>${payment.from}</strong> debe <strong>${money.format(payment.amount)}</strong> a <strong>${payment.to}</strong>
+          <strong>${escapeHtml(payment.from)}</strong> debe <strong>${money.format(payment.amount)}</strong> a <strong>${escapeHtml(payment.to)}</strong>
         </article>
       `).join("");
 
@@ -1136,7 +1428,7 @@
         .filter(person => Math.abs(person.net) < .005)
         .map(person => `
           <article class="capture-item">
-            <strong>${person.name}</strong> queda compensado.
+            <strong>${escapeHtml(person.name)}</strong> queda compensado.
           </article>
         `).join("");
 
@@ -1219,9 +1511,259 @@
 
     function syncBuyerIndexesAfterRemove(removedIndex) {
       Object.values(state.expenses).forEach(expense => {
-        if (expense.buyer === removedIndex) expense.buyer = 0;
-        if (expense.buyer > removedIndex) expense.buyer -= 1;
+        expense.buyers = getExpenseBuyers(expense).map(index => {
+          if (index === removedIndex) return -1;
+          if (index > removedIndex) return index - 1;
+          return index;
+        });
       });
+    }
+
+    function setStatus(message, type = "") {
+      const status = $("#syncStatus");
+      status.textContent = message;
+      status.className = `status-line ${type}`.trim();
+    }
+
+    function getSupabaseErrorMessage(error) {
+      const message = String(error?.message || error || "");
+      if (message.includes("Failed to fetch")) return "No se pudo conectar. Revisa la conexión a internet o prueba con la clave legacy anon.";
+      if (message.includes("404") || message.includes("PGRST")) return "Conecta bien, pero falta crear la tabla guardias en Supabase.";
+      if (message.includes("401") || message.includes("403")) return "La clave no tiene permisos. Usa la clave pública/anon, no la secreta.";
+      return message || "Error desconocido de Supabase.";
+    }
+
+    function createSupabaseRestClient(url, key) {
+      const baseUrl = url.replace(/\/$/, "");
+      const headers = {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json"
+      };
+
+      async function request(path, options = {}) {
+        const response = await fetch(`${baseUrl}/rest/v1/${path}`, {
+          ...options,
+          headers: {
+            ...headers,
+            ...(options.headers || {})
+          }
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`${response.status} ${text}`);
+        }
+        if (response.status === 204) return null;
+        const text = await response.text();
+        return text ? JSON.parse(text) : null;
+      }
+
+      return {
+        async testConnection() {
+          return request("guardias?select=guard_date&limit=1");
+        },
+        async upsertGuard(row) {
+          return request("guardias?on_conflict=guard_date,station", {
+            method: "POST",
+            headers: {
+              Prefer: "resolution=merge-duplicates,return=minimal"
+            },
+            body: JSON.stringify(row)
+          });
+        },
+        async getGuard(identity) {
+          const guardDate = encodeURIComponent(identity.guard_date);
+          const station = encodeURIComponent(identity.station);
+          const rows = await request(`guardias?select=*&guard_date=eq.${guardDate}&station=eq.${station}&limit=1`);
+          return Array.isArray(rows) ? rows[0] : null;
+        },
+        async getHistory(station) {
+          return request(`guardias?select=guard_date,station,present_count,totals,updated_at&station=eq.${encodeURIComponent(station)}&order=guard_date.desc&limit=${HISTORY_LIMIT}`);
+        }
+      };
+    }
+
+    function guardIdentity() {
+      return {
+        guard_date: $("#date").value || todayIso(),
+        station: $("#station").value.trim() || "Parque Campanar"
+      };
+    }
+
+    function calculationSummary() {
+      const { difference, settlements, totalDue, totalSpent } = getCalculation();
+      return { difference, settlements, totalDue, totalSpent };
+    }
+
+    function saveLocalSnapshot() {
+      const snapshot = {
+        ...guardIdentity(),
+        payload: currentPayload(),
+        updated_at: new Date().toISOString()
+      };
+      writeStoredValue(STORAGE_KEY, JSON.stringify(snapshot));
+    }
+
+    function scheduleSave() {
+      if (remoteUpdateInProgress) return;
+      saveLocalSnapshot();
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        if (supabase) saveGuardToSupabase({ quiet: true });
+      }, 700);
+    }
+
+    async function connectSupabase() {
+      const url = $("#supabaseUrl").value.trim();
+      const key = $("#supabaseKey").value.trim();
+
+      if (!url || !key) {
+        setStatus("Pega la URL y la clave pública de Supabase para conectar.", "danger");
+        return;
+      }
+
+      try {
+        setStatus("Conectando con Supabase...");
+        supabase = createSupabaseRestClient(url, key);
+        await supabase.testConnection();
+        writeStoredValue(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
+        setStatus("Conectado. Las guardias se guardarán para todo el grupo.", "ok");
+        await loadGuardFromSupabase({ quiet: true });
+        await loadHistory();
+      } catch (error) {
+        supabase = null;
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function saveGuardToSupabase(options = {}) {
+      if (!supabase) {
+        setStatus("Conecta Supabase antes de guardar para el grupo.", "danger");
+        return;
+      }
+
+      const identity = guardIdentity();
+      const summary = calculationSummary();
+      const row = {
+        ...identity,
+        payload: currentPayload(),
+        totals: summary,
+        present_count: presentIndexes().length,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        await supabase.upsertGuard(row);
+        if (!options.quiet) setStatus("Guardia guardada en Supabase.", "ok");
+        await loadHistory();
+      } catch (error) {
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function loadGuardFromSupabase(options = {}) {
+      if (!supabase) {
+        setStatus("Conecta Supabase antes de cargar datos del grupo.", "danger");
+        return;
+      }
+
+      const identity = guardIdentity();
+      try {
+        const data = await supabase.getGuard(identity);
+        if (!data?.payload) {
+          if (!options.quiet) setStatus("No hay guardia guardada para esa fecha.", "");
+          return;
+        }
+
+        remoteUpdateInProgress = true;
+        applySavedState(data.payload);
+        remoteUpdateInProgress = false;
+        if (!options.quiet) setStatus("Guardia cargada desde Supabase.", "ok");
+      } catch (error) {
+        remoteUpdateInProgress = false;
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function loadHistory() {
+      if (!supabase) return;
+      const { station } = guardIdentity();
+      const list = $("#historyList");
+
+      try {
+        const data = await supabase.getHistory(station);
+
+        list.innerHTML = data.length
+          ? data.map(row => {
+            const spent = money.format(Number(row.totals?.totalSpent || 0));
+            return `
+              <button class="history-item" type="button" data-history-date="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">
+                <strong>${formatDateForDisplay(row.guard_date)} · ${escapeHtml(row.station)}</strong>
+                <span>${row.present_count || 0} presentes · ${spent} gastados</span>
+              </button>
+            `;
+          }).join("")
+          : `<div class="notice">Todavía no hay guardias guardadas.</div>`;
+      } catch (error) {
+        list.innerHTML = `<div class="notice">${escapeHtml(getSupabaseErrorMessage(error))}</div>`;
+      }
+    }
+
+    function subscribeToCurrentGuard() {
+      if (!supabase) return;
+    }
+
+    function addDays(isoDate, days) {
+      const date = new Date(`${isoDate}T12:00:00`);
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function daysBetween(startIso, endIso) {
+      const start = new Date(`${startIso}T12:00:00`);
+      const end = new Date(`${endIso}T12:00:00`);
+      return Math.round((end - start) / 86400000);
+    }
+
+    function isDutyDate(isoDate) {
+      const start = $("#cycleStart").value;
+      if (!start) return false;
+      return daysBetween(start, isoDate) % 5 === 0;
+    }
+
+    function renderCalendar() {
+      const monthValue = $("#calendarMonth").value || todayIso().slice(0, 7);
+      const [year, month] = monthValue.split("-").map(Number);
+      const first = new Date(year, month - 1, 1);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const firstWeekday = (first.getDay() + 6) % 7;
+      const labels = ["L", "M", "X", "J", "V", "S", "D"].map(day => `<div class="calendar-label">${day}</div>`);
+      const blanks = Array.from({ length: firstWeekday }, () => `<div class="calendar-day is-empty"></div>`);
+      const selectedDate = $("#date").value;
+      const days = Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const iso = `${monthValue}-${String(day).padStart(2, "0")}`;
+        const classes = [
+          "calendar-day",
+          isDutyDate(iso) ? "is-duty" : "",
+          iso === selectedDate ? "is-selected" : ""
+        ].filter(Boolean).join(" ");
+        return `<button class="${classes}" type="button" data-calendar-date="${iso}">${day}</button>`;
+      });
+
+      $("#calendar").innerHTML = `${labels.join("")}${blanks.join("")}${days.join("")}`;
+      const nextGuard = nextDutyFrom(todayIso());
+      $("#calendarNote").textContent = nextGuard
+        ? `Próxima guardia prevista: ${formatDateForDisplay(nextGuard)}.`
+        : "Elige una fecha de referencia para calcular el ciclo.";
+    }
+
+    function nextDutyFrom(startIso) {
+      for (let offset = 0; offset <= 35; offset += 1) {
+        const iso = addDays(startIso, offset);
+        if (isDutyDate(iso)) return iso;
+      }
+      return "";
     }
 
     function rerender() {
@@ -1229,6 +1771,7 @@
       renderPeople();
       syncSummaryCards();
       calculate();
+      renderCalendar();
     }
 
     document.body.addEventListener("input", event => {
@@ -1237,10 +1780,11 @@
       const personIndex = target.dataset.person;
 
       if (expenseKey) {
-        state.expenses[expenseKey][target.dataset.field] = target.dataset.field === "amount"
-          ? target.value
-          : Number(target.value);
+        if (target.dataset.field === "amount") {
+          state.expenses[expenseKey].amount = target.value;
+        }
         calculate();
+        scheduleSave();
       }
 
       if (personIndex !== undefined) {
@@ -1250,29 +1794,75 @@
         if (field === "name") renderExpenses();
         if (field === "present") {
           rerender();
+          scheduleSave();
           return;
         }
         calculate();
+        scheduleSave();
       }
     });
 
     $("#minimumCharge").addEventListener("input", event => {
       state.minimumCharge = event.target.value;
       calculate();
+      scheduleSave();
     });
 
     $("#openCapture").addEventListener("click", openCaptureScreen);
     $("#closeCapture").addEventListener("click", closeCaptureScreen);
+    $("#connectSupabase").addEventListener("click", connectSupabase);
+    $("#saveGuard").addEventListener("click", () => saveGuardToSupabase());
+    $("#loadGuard").addEventListener("click", () => loadGuardFromSupabase());
+    $("#todayGuard").addEventListener("click", () => {
+      $("#date").value = todayIso();
+      $("#calendarMonth").value = todayIso().slice(0, 7);
+      rerender();
+      if (supabase) {
+        loadGuardFromSupabase({ quiet: true });
+        subscribeToCurrentGuard();
+      }
+    });
 
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") closeCaptureScreen();
     });
 
+    $("#date").addEventListener("change", () => {
+      $("#calendarMonth").value = $("#date").value.slice(0, 7);
+      rerender();
+      saveLocalSnapshot();
+      if (supabase) {
+        loadGuardFromSupabase({ quiet: true });
+        subscribeToCurrentGuard();
+      }
+    });
+
+    $("#station").addEventListener("input", () => {
+      saveLocalSnapshot();
+      if (supabase) {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => {
+          loadHistory();
+          subscribeToCurrentGuard();
+        }, 500);
+      }
+    });
+
+    $("#cycleStart").addEventListener("change", event => {
+      writeStoredValue(CYCLE_START_KEY, event.target.value);
+      renderCalendar();
+    });
+
+    $("#calendarMonth").addEventListener("change", renderCalendar);
+
     document.body.addEventListener("change", event => {
       const target = event.target;
-      if (target.dataset.expense && target.dataset.field === "buyer") {
-        state.expenses[target.dataset.expense].buyer = Number(target.value);
-        calculate();
+      if (target.dataset.expense && target.dataset.field === "buyers") {
+        const expense = state.expenses[target.dataset.expense];
+        const slot = Number(target.dataset.buyerSlot);
+        expense.buyers[slot] = Number(target.value);
+        rerender();
+        scheduleSave();
       }
     });
 
@@ -1284,6 +1874,28 @@
         state.people.splice(index, 1);
         syncBuyerIndexesAfterRemove(index);
         rerender();
+        scheduleSave();
+      }
+
+      const historyButton = event.target.closest("[data-history-date]");
+      if (historyButton) {
+        $("#date").value = historyButton.dataset.historyDate;
+        $("#station").value = historyButton.dataset.historyStation;
+        $("#calendarMonth").value = historyButton.dataset.historyDate.slice(0, 7);
+        loadGuardFromSupabase();
+        subscribeToCurrentGuard();
+      }
+
+      const calendarButton = event.target.closest("[data-calendar-date]");
+      if (calendarButton) {
+        $("#date").value = calendarButton.dataset.calendarDate;
+        $("#calendarMonth").value = calendarButton.dataset.calendarDate.slice(0, 7);
+        rerender();
+        saveLocalSnapshot();
+        if (supabase) {
+          loadGuardFromSupabase({ quiet: true });
+          subscribeToCurrentGuard();
+        }
       }
     });
 
@@ -1293,17 +1905,28 @@
       state.people.push({ name, present: true, breakfast: false, bread: false, lunch: false, dinner: false });
       input.value = "";
       rerender();
+      scheduleSave();
     });
 
     $("#newPerson").addEventListener("keydown", event => {
       if (event.key === "Enter") $("#addPerson").click();
     });
 
-    $("#date").value = todayIso();
+    const savedConfig = readJson(SUPABASE_CONFIG_KEY) || {};
+    $("#supabaseUrl").value = savedConfig.url || DEFAULT_SUPABASE_URL;
+    $("#supabaseKey").value = savedConfig.key || DEFAULT_SUPABASE_KEY;
+
+    const savedSnapshot = readJson(STORAGE_KEY);
+    $("#date").value = savedSnapshot?.guard_date || todayIso();
+    $("#station").value = savedSnapshot?.station || $("#station").value;
+    $("#calendarMonth").value = $("#date").value.slice(0, 7);
+    $("#cycleStart").value = readStoredValue(CYCLE_START_KEY) || $("#date").value;
+    if (savedSnapshot?.payload) applySavedState(savedSnapshot.payload);
     $("#minimumCharge").value = state.minimumCharge;
     rerender();
     updateBitcoinPrice();
     setInterval(updateBitcoinPrice, 60000);
+    connectSupabase();
   </script>
 </body>
 </html>
