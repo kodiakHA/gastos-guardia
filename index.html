@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Peña Campanar | Reparto de gastos</title>
+  <title>Peña Empastre Kampanar</title>
   <style>
     :root {
       --bg: #eef7fb;
@@ -98,14 +98,14 @@
       display: contents;
     }
 
-    .present-panel { grid-column: 1; grid-row: 1; order: 1; }
-    .turn-panel { grid-column: 2 / 4; grid-row: 1; order: 2; }
-    .expenses-panel { grid-column: 1; grid-row: 2; order: 3; }
-    .minimum-panel { grid-column: 2; grid-row: 2; order: 4; }
-    .capture-panel { grid-column: 3; grid-row: 2; order: 5; }
-    .calendar-panel { grid-column: 1 / 3; grid-row: 3; order: 6; }
-    .results-panel { grid-column: 3; grid-row: 3; order: 7; }
-    .history-panel { grid-column: 1 / -1; grid-row: 4; order: 8; }
+    .calendar-panel { grid-column: 1 / -1; grid-row: 1; order: 1; }
+    .present-panel { grid-column: 1; grid-row: 2; order: 2; }
+    .turn-panel { grid-column: 2 / 4; grid-row: 2; order: 3; }
+    .expenses-panel { grid-column: 1; grid-row: 3; order: 4; }
+    .minimum-panel { grid-column: 2; grid-row: 3; order: 5; }
+    .capture-panel { grid-column: 3; grid-row: 3; order: 6; }
+    .results-panel { grid-column: 1 / 3; grid-row: 4; order: 7; }
+    .history-panel { grid-column: 3; grid-row: 4; order: 8; }
     .payment-panel { grid-column: 1 / -1; grid-row: 5; order: 9; }
 
     header {
@@ -164,7 +164,7 @@
 
     .header-fields {
       display: grid;
-      grid-template-columns: 160px minmax(220px, 1fr);
+      grid-template-columns: minmax(280px, 1fr);
       gap: 10px;
     }
 
@@ -172,11 +172,11 @@
       display: grid;
       gap: 6px;
       align-self: end;
-      min-height: 40px;
+      min-height: 78px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: color-mix(in srgb, var(--panel) 92%, white);
-      padding: 9px 10px;
+      padding: 13px 14px;
     }
 
     .cooking-card strong,
@@ -192,13 +192,15 @@
       color: var(--text);
       padding: 0;
       font: inherit;
+      font-size: 1.72rem;
+      text-transform: uppercase;
       cursor: pointer;
       text-align: left;
     }
 
     .cooking-card span {
       color: var(--muted);
-      font-size: .85rem;
+      font-size: 1rem;
       line-height: 1.25;
     }
 
@@ -318,8 +320,8 @@
 
     .expense-row {
       display: grid;
-      grid-template-columns: minmax(92px, .65fr) minmax(0, 2fr);
-      gap: 8px;
+      grid-template-columns: minmax(110px, .35fr) minmax(0, 2fr);
+      gap: 14px;
       align-items: start;
     }
 
@@ -878,8 +880,12 @@
         grid-row: auto;
       }
 
-      .turn-panel,
       .calendar-panel,
+      .present-panel,
+      .turn-panel,
+      .expenses-panel,
+      .minimum-panel,
+      .capture-panel,
       .results-panel,
       .history-panel,
       .payment-panel {
@@ -940,8 +946,7 @@
       <div class="brand">
         <div class="mark" aria-hidden="true">🔥</div>
         <div>
-          <h1>Reparto de gastos</h1>
-          <p class="subhead">Turno diario · Bomberos Valencia</p>
+          <h1>Peña Empastre Kampanar</h1>
         </div>
       </div>
       <div class="bitcoin-banner" aria-live="polite">
@@ -957,13 +962,10 @@
         </div>
       </div>
       <div class="header-fields">
-        <label>
-          Fecha
-          <input id="date" type="date">
-        </label>
+        <input id="date" type="hidden">
         <input id="station" type="hidden" value="Parque Campanar">
         <div class="cooking-card">
-          <button class="group-toggle" id="toggleCookingMembers" type="button">Grupo de cocina</button>
+          <button class="group-toggle" id="toggleCookingMembers" type="button">GRUPO DE COCINA</button>
           <span id="cookingGroupMembers" hidden>Selecciona una guardia.</span>
           <button class="tool-button" id="openGroups" type="button">Editar grupos</button>
         </div>
@@ -1395,14 +1397,14 @@
       const groupNumber = cookingGroupNumberForDate($("#date").value);
       const membersEl = $("#cookingGroupMembers");
       if (!groupNumber) {
-        $("#toggleCookingMembers").textContent = "Sin guardia";
+        $("#toggleCookingMembers").textContent = "SIN GUARDIA";
         membersEl.textContent = "Selecciona una fecha de guardia.";
         membersEl.hidden = true;
         return;
       }
 
       const members = cookingGroups[groupNumber] || [];
-      $("#toggleCookingMembers").textContent = `Cocina Grupo ${groupNumber}`;
+      $("#toggleCookingMembers").textContent = `COCINA GRUPO ${groupNumber}`;
       membersEl.textContent = members.length ? members.join(", ") : "Sin componentes asignados.";
       membersEl.hidden = !cookingMembersVisible;
     }
@@ -2359,7 +2361,8 @@
     $("#supabaseKey").value = savedConfig.key || DEFAULT_SUPABASE_KEY;
 
     const savedSnapshot = readJson(STORAGE_KEY);
-    $("#date").value = savedSnapshot?.guard_date || todayIso();
+    const initialDate = todayIso();
+    $("#date").value = initialDate;
     activeGuardDate = $("#date").value;
     $("#station").value = savedSnapshot?.station || $("#station").value;
     $("#calendarMonth").value = $("#date").value.slice(0, 7);
@@ -2368,7 +2371,7 @@
       writeStoredValue(CYCLE_START_VERSION_KEY, CYCLE_START_VERSION);
     }
     $("#cycleStart").value = readStoredValue(CYCLE_START_KEY) || DEFAULT_CYCLE_START;
-    if (savedSnapshot?.payload) applySavedState(savedSnapshot.payload);
+    if (savedSnapshot?.guard_date === initialDate && savedSnapshot?.payload) applySavedState(savedSnapshot.payload);
     $("#minimumCharge").value = state.minimumCharge;
     rerender();
     updateBitcoinPrice();
