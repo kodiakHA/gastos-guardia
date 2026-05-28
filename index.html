@@ -106,6 +106,7 @@
     .calendar-panel { grid-column: 1 / 3; grid-row: 3; order: 6; }
     .results-panel { grid-column: 3; grid-row: 3; order: 7; }
     .history-panel { grid-column: 1 / -1; grid-row: 4; order: 8; }
+    .payment-panel { grid-column: 1 / -1; grid-row: 5; order: 9; }
 
     header {
       display: grid;
@@ -163,8 +164,53 @@
 
     .header-fields {
       display: grid;
-      grid-template-columns: 160px 190px;
+      grid-template-columns: 160px minmax(220px, 1fr);
       gap: 10px;
+    }
+
+    .cooking-card {
+      display: grid;
+      gap: 6px;
+      align-self: end;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 92%, white);
+      padding: 9px 10px;
+    }
+
+    .cooking-card strong,
+    .cooking-card .group-toggle {
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    .group-toggle {
+      width: fit-content;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .cooking-card span {
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.25;
+    }
+
+    .cooking-card span[hidden] {
+      display: none;
+    }
+
+    .cooking-card button {
+      justify-self: start;
+      min-height: 30px;
+      padding: 5px 9px;
+      font-size: .84rem;
     }
 
     .panel {
@@ -401,6 +447,31 @@
       color: var(--muted);
       font-size: .84rem;
       line-height: 1.35;
+    }
+
+    .payment-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .payment-item {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 90%, var(--panel-2));
+    }
+
+    .payment-item.is-paid {
+      opacity: .68;
+    }
+
+    .payment-item span {
+      color: var(--muted);
+      font-size: .86rem;
     }
 
     .expense-name {
@@ -662,6 +733,16 @@
       font-weight: 500;
     }
 
+    .group-editor {
+      display: grid;
+      gap: 12px;
+    }
+
+    .group-editor textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
     .capture-actions {
       display: flex;
       gap: 8px;
@@ -800,7 +881,8 @@
       .turn-panel,
       .calendar-panel,
       .results-panel,
-      .history-panel {
+      .history-panel,
+      .payment-panel {
         grid-column: 1 / -1;
         grid-row: auto;
       }
@@ -879,10 +961,12 @@
           Fecha
           <input id="date" type="date">
         </label>
-        <label>
-          Parque de bomberos
-          <input id="station" type="text" value="Parque Campanar">
-        </label>
+        <input id="station" type="hidden" value="Parque Campanar">
+        <div class="cooking-card">
+          <button class="group-toggle" id="toggleCookingMembers" type="button">Grupo de cocina</button>
+          <span id="cookingGroupMembers" hidden>Selecciona una guardia.</span>
+          <button class="tool-button" id="openGroups" type="button">Editar grupos</button>
+        </div>
       </div>
     </header>
 
@@ -1018,7 +1102,19 @@
         </div>
         <div class="panel-body">
           <div class="history-list" id="historyList">
-            <div class="notice">Conecta Supabase para ver las guardias guardadas.</div>
+            <div class="notice">Las liquidaciones cerradas aparecerán aquí.</div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="panel payment-panel">
+        <div class="panel-title">
+          <h2>Pagos pendientes</h2>
+        </div>
+        <div class="panel-body">
+          <button class="tool-button" id="unlockGuard" type="button" hidden>Corregir liquidación</button>
+          <div class="payment-list" id="pendingPayments">
+            <div class="notice">Al cerrar una liquidación, los pagos pendientes aparecerán aquí.</div>
           </div>
         </div>
       </aside>
@@ -1040,6 +1136,22 @@
     </div>
   </section>
 
+  <section class="capture-screen" id="groupsScreen" aria-hidden="true">
+    <div class="capture-sheet">
+      <div class="capture-head">
+        <div>
+          <h2>Grupos de cocina</h2>
+          <p class="capture-meta">Cambios compartidos para todo el turno</p>
+        </div>
+        <div class="capture-actions">
+          <button class="tool-button primary" id="saveGroups" type="button">Guardar</button>
+          <button class="tool-button" id="closeGroups" type="button">Cerrar</button>
+        </div>
+      </div>
+      <div class="group-editor" id="groupEditor"></div>
+    </div>
+  </section>
+
   <script>
     const expenseTypes = [
       { key: "breakfast", label: "Almuerzo", meal: "breakfast" },
@@ -1057,6 +1169,8 @@
     const DEFAULT_SUPABASE_URL = "https://fkwtwopvmvimskftyidg.supabase.co";
     const DEFAULT_SUPABASE_KEY = "sb_publishable_vK7rcjE30eGUmRQCW2I-iQ_4jFUbOJe";
     const DEFAULT_CYCLE_START = "2026-05-29";
+    const CONFIG_GUARD_DATE = "1900-01-01";
+    const CONFIG_STATION = "__config__";
 
     const state = {
       people: [
@@ -1089,6 +1203,15 @@
     let remoteUpdateInProgress = false;
     let guardChannel = null;
     let activeGuardDate = "";
+    let guardLocked = false;
+    let paymentStatus = {};
+    let cookingMembersVisible = false;
+    let cookingGroups = {
+      1: ["Galisteo", "Migue", "Mora"],
+      2: ["Noelia", "Laki", "Espín", "Blesa"],
+      3: ["Poveda", "Vladi", "Pla"],
+      4: ["Chema", "Nole", "Almela"]
+    };
     const memoryStorage = {};
 
     const money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
@@ -1188,6 +1311,8 @@
       state.people = clone(savedState.people || state.people);
       state.expenses = clone(savedState.expenses || state.expenses);
       state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
+      guardLocked = savedState.locked === true;
+      paymentStatus = clone(savedState.paymentStatus || {});
       normalizeStateShape();
       $("#minimumCharge").value = state.minimumCharge;
       rerender();
@@ -1209,7 +1334,9 @@
           lunch: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] },
           dinner: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] }
         },
-        minimumCharge: 2
+        minimumCharge: 2,
+        locked: false,
+        paymentStatus: {}
       };
     }
 
@@ -1222,7 +1349,9 @@
       return {
         people: clone(state.people),
         expenses: clone(state.expenses),
-        minimumCharge: state.minimumCharge
+        minimumCharge: state.minimumCharge,
+        locked: guardLocked,
+        paymentStatus: clone(paymentStatus)
       };
     }
 
@@ -1236,6 +1365,60 @@
       const normalized = String(value || "").replace(",", ".");
       const amount = Number.parseFloat(normalized);
       return Number.isFinite(amount) && amount > 0 ? amount : 0;
+    }
+
+    function paymentKey(payment) {
+      return `${payment.from}::${payment.to}::${Math.round(payment.amount * 100)}`;
+    }
+
+    function positiveModulo(value, divisor) {
+      return ((value % divisor) + divisor) % divisor;
+    }
+
+    function cookingGroupNumberForDate(isoDate) {
+      if (!isoDate || !isDutyDate(isoDate)) return null;
+      const guardIndex = Math.round(daysBetween(DEFAULT_CYCLE_START, isoDate) / 5);
+      return positiveModulo(guardIndex + 1, 4) + 1;
+    }
+
+    function normalizeCookingGroups(groups = cookingGroups) {
+      const normalized = {};
+      [1, 2, 3, 4].forEach(groupNumber => {
+        normalized[groupNumber] = Array.isArray(groups[groupNumber])
+          ? groups[groupNumber].map(name => String(name).trim()).filter(Boolean)
+          : [];
+      });
+      return normalized;
+    }
+
+    function renderCookingGroupSummary() {
+      const groupNumber = cookingGroupNumberForDate($("#date").value);
+      const membersEl = $("#cookingGroupMembers");
+      if (!groupNumber) {
+        $("#toggleCookingMembers").textContent = "Sin guardia";
+        membersEl.textContent = "Selecciona una fecha de guardia.";
+        membersEl.hidden = true;
+        return;
+      }
+
+      const members = cookingGroups[groupNumber] || [];
+      $("#toggleCookingMembers").textContent = `Cocina Grupo ${groupNumber}`;
+      membersEl.textContent = members.length ? members.join(", ") : "Sin componentes asignados.";
+      membersEl.hidden = !cookingMembersVisible;
+    }
+
+    function toggleCookingGroupMembers() {
+      cookingMembersVisible = !cookingMembersVisible;
+      renderCookingGroupSummary();
+    }
+
+    function renderGroupEditor() {
+      $("#groupEditor").innerHTML = [1, 2, 3, 4].map(groupNumber => `
+        <label>
+          Grupo ${groupNumber}
+          <textarea data-group-number="${groupNumber}" spellcheck="false">${escapeHtml((cookingGroups[groupNumber] || []).join(", "))}</textarea>
+        </label>
+      `).join("");
     }
 
     function syncSummaryCards() {
@@ -1313,8 +1496,8 @@
               ${getExpenseBuyers(expense).slice(0, slots).map((buyer, buyerSlot) => `
                 <div class="buyer-slot">
                   <div class="buyer-slot-title">${slots === 1 ? "Comprador" : `Comprador ${buyerSlot + 1}`}</div>
-                  <select data-expense="${type.key}" data-field="buyers" data-buyer-slot="${buyerSlot}">${renderBuyerOptions(buyer)}</select>
-                  <input data-expense="${type.key}" data-field="buyerAmounts" data-buyer-slot="${buyerSlot}" inputmode="decimal" value="${amounts[buyerSlot]}" aria-label="Importe de ${type.label} comprador ${buyerSlot + 1}">
+                  <select data-expense="${type.key}" data-field="buyers" data-buyer-slot="${buyerSlot}" ${guardLocked ? "disabled" : ""}>${renderBuyerOptions(buyer)}</select>
+                  <input data-expense="${type.key}" data-field="buyerAmounts" data-buyer-slot="${buyerSlot}" inputmode="decimal" value="${amounts[buyerSlot]}" ${guardLocked ? "disabled" : ""} aria-label="Importe de ${type.label} comprador ${buyerSlot + 1}">
                 </div>
               `).join("")}
             </div>
@@ -1430,7 +1613,9 @@
       $("#totalSpent").textContent = money.format(totalSpent);
       $("#totalDue").textContent = money.format(totalDue);
       $("#difference").textContent = money.format(difference);
-      $("#calcNote").textContent = warnings.length
+      $("#calcNote").textContent = guardLocked
+        ? "Guardia liquidada y bloqueada. Puedes consultar la liquidación, pero no modificar datos."
+        : warnings.length
         ? warnings.join(" ")
         : "Estos son los pagos directos que liquidan la cuenta entre compañeros.";
 
@@ -1467,6 +1652,37 @@
         <div class="section-label">Detalle por persona</div>
         ${balanceHtml}
       `;
+      renderPendingPayments(settlements);
+    }
+
+    function renderPendingPayments(settlements = getCalculation().settlements) {
+      const container = $("#pendingPayments");
+      if (!guardLocked) {
+        container.innerHTML = `<div class="notice">Al cerrar una liquidación, los pagos pendientes aparecerán aquí.</div>`;
+        return;
+      }
+
+      if (!settlements.length) {
+        container.innerHTML = `<div class="notice">No hay pagos pendientes: la cuenta queda compensada.</div>`;
+        return;
+      }
+
+      const pendingCount = settlements.filter(payment => !paymentStatus[paymentKey(payment)]).length;
+      const summary = pendingCount
+        ? `<div class="notice">Faltan ${pendingCount} pago${pendingCount === 1 ? "" : "s"} por marcar.</div>`
+        : `<div class="notice">Todos los pagos están marcados como realizados.</div>`;
+
+      container.innerHTML = `${summary}${settlements.map(payment => {
+        const key = paymentKey(payment);
+        const paid = paymentStatus[key] === true;
+        return `
+          <label class="payment-item ${paid ? "is-paid" : ""}">
+            <input type="checkbox" data-payment-key="${escapeHtml(key)}" ${paid ? "checked" : ""}>
+            <strong>${escapeHtml(payment.from)} debe ${money.format(payment.amount)} a ${escapeHtml(payment.to)}</strong>
+            <span>${paid ? "Pagado" : "Pendiente"}</span>
+          </label>
+        `;
+      }).join("")}`;
     }
 
     function renderCaptureScreen() {
@@ -1500,10 +1716,22 @@
       try {
         renderCaptureScreen();
         clearTimeout(syncTimer);
+        let saved = true;
         if (supabase) {
-          await saveGuardToSupabase({ quiet: true });
+          saved = await saveGuardToSupabase({ quiet: true, locked: true });
         } else {
           saveLocalSnapshot();
+        }
+        if (saved) {
+          guardLocked = true;
+          getCalculation().settlements.forEach(payment => {
+            const key = paymentKey(payment);
+            if (paymentStatus[key] !== true) paymentStatus[key] = false;
+          });
+          if (supabase) await saveGuardToSupabase({ quiet: true, locked: true });
+          saveLocalSnapshot();
+          calculate();
+          syncLockedControls();
         }
         $("#captureScreen").classList.add("is-open");
         $("#captureScreen").setAttribute("aria-hidden", "false");
@@ -1515,6 +1743,22 @@
     function closeCaptureScreen() {
       $("#captureScreen").classList.remove("is-open");
       $("#captureScreen").setAttribute("aria-hidden", "true");
+    }
+
+    function openGroupsScreen() {
+      renderGroupEditor();
+      $("#groupsScreen").classList.add("is-open");
+      $("#groupsScreen").setAttribute("aria-hidden", "false");
+    }
+
+    function closeGroupsScreen() {
+      $("#groupsScreen").classList.remove("is-open");
+      $("#groupsScreen").setAttribute("aria-hidden", "true");
+    }
+
+    async function saveGroupsAndClose() {
+      await saveCookingGroups();
+      closeGroupsScreen();
     }
 
     async function updateBitcoinPrice() {
@@ -1647,7 +1891,21 @@
           return Array.isArray(rows) ? rows[0] : null;
         },
         async getHistory(station) {
-          return request(`guardias?select=guard_date,station,present_count,totals,updated_at&station=eq.${encodeURIComponent(station)}&order=guard_date.desc&limit=${HISTORY_LIMIT}`);
+          return request(`guardias?select=guard_date,station,present_count,totals,updated_at&station=eq.${encodeURIComponent(station)}&totals->>locked=eq.true&order=guard_date.desc&limit=${HISTORY_LIMIT}`);
+        },
+        async getConfig() {
+          const rows = await request(`guardias?select=*&guard_date=eq.${CONFIG_GUARD_DATE}&station=eq.${CONFIG_STATION}&limit=1`);
+          return Array.isArray(rows) ? rows[0] : null;
+        },
+        async upsertConfig(payload) {
+          return this.upsertGuard({
+            guard_date: CONFIG_GUARD_DATE,
+            station: CONFIG_STATION,
+            payload,
+            totals: {},
+            present_count: 0,
+            updated_at: new Date().toISOString()
+          });
         }
       };
     }
@@ -1664,11 +1922,19 @@
       return { difference, settlements, totalDue, totalSpent };
     }
 
-    function buildGuardRow(identity = guardIdentity()) {
+    function buildGuardRow(identity = guardIdentity(), options = {}) {
+      const summary = calculationSummary();
+      summary.locked = options.locked ?? guardLocked;
+      summary.pendingPayments = getCalculation().settlements.map(payment => ({
+        ...payment,
+        paid: paymentStatus[paymentKey(payment)] === true
+      }));
+      const payload = currentPayload();
+      payload.locked = summary.locked;
       return {
         ...identity,
-        payload: currentPayload(),
-        totals: calculationSummary(),
+        payload,
+        totals: summary,
         present_count: presentIndexes().length,
         updated_at: new Date().toISOString()
       };
@@ -1683,6 +1949,19 @@
       writeStoredValue(STORAGE_KEY, JSON.stringify(snapshot));
     }
 
+    function syncLockedControls() {
+      $("#minimumCharge").disabled = guardLocked;
+      $("#addPerson").disabled = guardLocked;
+      $("#newPerson").disabled = guardLocked;
+      $("#unlockGuard").hidden = !guardLocked;
+      document.querySelectorAll("[data-expense], [data-person], [data-remove]").forEach(control => {
+        control.disabled = guardLocked || (control.dataset.field !== "present" && control.dataset.person !== undefined && !isPresent(state.people[Number(control.dataset.person)]));
+      });
+      document.querySelectorAll("[data-payment-key]").forEach(control => {
+        control.disabled = false;
+      });
+    }
+
     function scheduleSave() {
       if (remoteUpdateInProgress) return;
       saveLocalSnapshot();
@@ -1695,6 +1974,15 @@
             .catch(error => setStatus(getSupabaseErrorMessage(error), "danger"));
         }
       }, 700);
+    }
+
+    function unlockGuardForCorrection() {
+      guardLocked = false;
+      paymentStatus = {};
+      calculate();
+      syncLockedControls();
+      saveLocalSnapshot();
+      scheduleSave();
     }
 
     async function connectSupabase() {
@@ -1712,11 +2000,42 @@
         await supabase.testConnection();
         writeStoredValue(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
         setStatus("Conectado. Las guardias se guardarán para todo el grupo.", "ok");
+        await loadCookingGroups();
         await loadGuardFromSupabase({ quiet: true, resetIfMissing: false });
         await loadHistory();
       } catch (error) {
         supabase = null;
         setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function loadCookingGroups() {
+      if (!supabase) return;
+      try {
+        const data = await supabase.getConfig();
+        cookingGroups = normalizeCookingGroups(data?.payload?.cookingGroups || cookingGroups);
+        renderCookingGroupSummary();
+        renderGroupEditor();
+      } catch (error) {
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function saveCookingGroups() {
+      const nextGroups = {};
+      document.querySelectorAll("[data-group-number]").forEach(input => {
+        nextGroups[input.dataset.groupNumber] = input.value
+          .split(/[,\n]/)
+          .map(name => name.trim())
+          .filter(Boolean);
+      });
+
+      cookingGroups = normalizeCookingGroups(nextGroups);
+      renderCookingGroupSummary();
+      renderGroupEditor();
+
+      if (supabase) {
+        await supabase.upsertConfig({ cookingGroups });
       }
     }
 
@@ -1727,7 +2046,7 @@
       }
 
       const identity = guardIdentity();
-      const row = buildGuardRow(options.identity || identity);
+      const row = buildGuardRow(options.identity || identity, { locked: options.locked });
 
       try {
         await supabase.upsertGuard(row);
@@ -1761,6 +2080,8 @@
 
         remoteUpdateInProgress = true;
         applySavedState(data.payload);
+        guardLocked = data.payload?.locked === true || data.totals?.locked === true;
+        syncLockedControls();
         remoteUpdateInProgress = false;
         if (!options.quiet) setStatus("Guardia cargada desde Supabase.", "ok");
         return true;
@@ -1789,7 +2110,7 @@
               </button>
             `;
           }).join("")
-          : `<div class="notice">Todavía no hay guardias guardadas.</div>`;
+          : `<div class="notice">Todavía no hay liquidaciones cerradas.</div>`;
       } catch (error) {
         list.innerHTML = `<div class="notice">${escapeHtml(getSupabaseErrorMessage(error))}</div>`;
       }
@@ -1865,6 +2186,7 @@
       $("#date").value = isoDate;
       activeGuardDate = isoDate;
       $("#calendarMonth").value = isoDate.slice(0, 7);
+      renderCookingGroupSummary();
       renderCalendar();
 
       if (supabase) {
@@ -1884,12 +2206,19 @@
       syncSummaryCards();
       calculate();
       renderCalendar();
+      renderCookingGroupSummary();
+      syncLockedControls();
     }
 
     document.body.addEventListener("input", event => {
       const target = event.target;
       const expenseKey = target.dataset.expense;
       const personIndex = target.dataset.person;
+
+      if (guardLocked && (expenseKey || personIndex !== undefined || target.id === "minimumCharge")) {
+        event.preventDefault();
+        return;
+      }
 
       if (expenseKey) {
         if (target.dataset.field === "buyerAmounts") {
@@ -1916,6 +2245,7 @@
     });
 
     $("#minimumCharge").addEventListener("input", event => {
+      if (guardLocked) return;
       state.minimumCharge = event.target.value;
       calculate();
       scheduleSave();
@@ -1923,6 +2253,11 @@
 
     $("#openCapture").addEventListener("click", openCaptureScreen);
     $("#closeCapture").addEventListener("click", closeCaptureScreen);
+    $("#toggleCookingMembers").addEventListener("click", toggleCookingGroupMembers);
+    $("#openGroups").addEventListener("click", openGroupsScreen);
+    $("#closeGroups").addEventListener("click", closeGroupsScreen);
+    $("#saveGroups").addEventListener("click", saveGroupsAndClose);
+    $("#unlockGuard").addEventListener("click", unlockGuardForCorrection);
     $("#connectSupabase").addEventListener("click", connectSupabase);
     $("#saveGuard").addEventListener("click", () => saveGuardToSupabase());
     $("#loadGuard").addEventListener("click", () => loadGuardFromSupabase());
@@ -1931,7 +2266,10 @@
     });
 
     document.addEventListener("keydown", event => {
-      if (event.key === "Escape") closeCaptureScreen();
+      if (event.key === "Escape") {
+        closeCaptureScreen();
+        closeGroupsScreen();
+      }
     });
 
     $("#date").addEventListener("change", () => {
@@ -1958,6 +2296,17 @@
 
     document.body.addEventListener("change", event => {
       const target = event.target;
+      if (target.dataset.paymentKey) {
+        paymentStatus[target.dataset.paymentKey] = target.checked;
+        renderPendingPayments();
+        scheduleSave();
+        return;
+      }
+
+      if (guardLocked && target.dataset.expense) {
+        event.preventDefault();
+        return;
+      }
       if (target.dataset.expense && target.dataset.field === "buyers") {
         const expense = state.expenses[target.dataset.expense];
         const slot = Number(target.dataset.buyerSlot);
@@ -1971,6 +2320,7 @@
       const removeButton = event.target.closest("[data-remove]");
 
       if (removeButton) {
+        if (guardLocked) return;
         const index = Number(removeButton.dataset.remove);
         state.people.splice(index, 1);
         syncBuyerIndexesAfterRemove(index);
@@ -1991,6 +2341,7 @@
     });
 
     $("#addPerson").addEventListener("click", () => {
+      if (guardLocked) return;
       const input = $("#newPerson");
       const name = input.value.trim() || `Compañero ${state.people.length + 1}`;
       state.people.push({ name, present: true, breakfast: false, bread: false, lunch: false, dinner: false });

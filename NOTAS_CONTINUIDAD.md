@@ -11,8 +11,13 @@
 - Hay contador grande de compañeros presentes.
 - Hay panel de Supabase para guardar y cargar guardias compartidas.
 - Hay calendario de guardias cada 5 días usando como referencia el 29/05/2026.
-- Hay historial de guardias guardadas en Supabase.
+- El historial muestra solo guardias liquidadas; las compras previas quedan guardadas, pero no aparecen en historial hasta abrir liquidacion.
 - Se pueden introducir compras previas seleccionando una fecha futura; la app carga esa guardia o empieza una ficha limpia para esa fecha.
+- Al abrir liquidacion, la guardia se guarda como liquidada y queda bloqueada para evitar modificaciones posteriores.
+- Las guardias liquidadas mantienen un panel de pagos pendientes; se puede marcar cada pago como realizado sin desbloquear la liquidacion.
+- El boton `Corregir liquidacion` desbloquea una guardia liquidada; al volver a abrir liquidacion se sobrescribe la misma guardia en Supabase.
+- La cabecera muestra el grupo de cocina que toca por fecha. 29/05/2026 empieza con Grupo 2 y avanza Grupo 3, Grupo 4, Grupo 1 en cada guardia.
+- Los grupos de cocina son editables y se guardan como configuracion compartida en Supabase.
 - Hay una `Pantalla de gastos` para abrir una vista limpia de liquidaciones y hacer captura.
 
 ## Compañeros cargados

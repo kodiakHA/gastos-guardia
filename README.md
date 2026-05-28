@@ -33,8 +33,12 @@ Railway usara el mismo comando de arranque.
 - Liquidacion directa entre companeros.
 - Calendario de guardias con ciclo de 5 dias desde el 29/05/2026.
 - Guardado local en el navegador y guardado compartido opcional con Supabase.
-- Historial de guardias guardadas.
+- Historial solo de guardias liquidadas.
 - Compras previas para guardias futuras: se selecciona la fecha de guardia y queda guardado para liquidar ese dia.
+- Bloqueo automatico de guardias liquidadas al abrir la pantalla de liquidacion.
+- Control de pagos pendientes tras liquidar, con casillas para marcar pagos realizados.
+- Correccion de liquidaciones: una guardia bloqueada puede desbloquearse, corregirse y liquidarse de nuevo para sobrescribir el historial.
+- Grupo de cocina calculado por guardia desde el 29/05/2026 y grupos editables compartidos en Supabase.
 - Pantalla limpia para captura de liquidaciones.
 - Banner de Bitcoin con precio BTC/EUR desde Binance.
 
