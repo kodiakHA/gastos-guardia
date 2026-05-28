@@ -101,12 +101,13 @@
     .calendar-panel { grid-column: 1 / -1; grid-row: 1; order: 1; }
     .present-panel { grid-column: 1; grid-row: 2; order: 2; }
     .turn-panel { grid-column: 2 / 4; grid-row: 2; order: 3; }
-    .expenses-panel { grid-column: 1; grid-row: 3; order: 4; }
-    .minimum-panel { grid-column: 2; grid-row: 3; order: 5; }
-    .capture-panel { grid-column: 3; grid-row: 3; order: 6; }
-    .results-panel { grid-column: 1 / 3; grid-row: 4; order: 7; }
-    .history-panel { grid-column: 3; grid-row: 4; order: 8; }
-    .payment-panel { grid-column: 1 / -1; grid-row: 5; order: 9; }
+    .shopping-panel { grid-column: 1 / -1; grid-row: 3; order: 4; }
+    .expenses-panel { grid-column: 1; grid-row: 4; order: 5; }
+    .minimum-panel { grid-column: 2; grid-row: 4; order: 6; }
+    .capture-panel { grid-column: 3; grid-row: 4; order: 7; }
+    .results-panel { grid-column: 1 / 3; grid-row: 5; order: 8; }
+    .history-panel { grid-column: 3; grid-row: 5; order: 9; }
+    .payment-panel { grid-column: 1 / -1; grid-row: 6; order: 10; }
 
     header {
       display: grid;
@@ -259,7 +260,11 @@
       text-transform: uppercase;
     }
 
-    input, select {
+    label.keep-case {
+      text-transform: none;
+    }
+
+    input, select, textarea {
       width: 100%;
       min-height: 40px;
       border: 1px solid var(--line);
@@ -273,24 +278,27 @@
     }
 
     .theme-neon input,
-    .theme-neon select {
+    .theme-neon select,
+    .theme-neon textarea {
       background: #080c13;
       box-shadow: inset 0 0 0 1px rgba(32, 242, 255, .06);
     }
 
     .theme-brutal input,
-    .theme-brutal select {
+    .theme-brutal select,
+    .theme-brutal textarea {
       border-width: 2px;
       box-shadow: 3px 3px 0 var(--text);
     }
 
-    input:focus, select:focus {
+    input:focus, select:focus, textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
     }
 
     .theme-brutal input:focus,
-    .theme-brutal select:focus {
+    .theme-brutal select:focus,
+    .theme-brutal textarea:focus {
       box-shadow: 3px 3px 0 var(--text), 0 0 0 4px #fff;
     }
 
@@ -310,6 +318,20 @@
       border-color: var(--accent);
       background: var(--accent);
       color: #fff;
+    }
+
+    .shopping-button {
+      min-height: 58px;
+      border-color: color-mix(in srgb, var(--check) 72%, var(--line));
+      background: color-mix(in srgb, var(--check) 70%, white);
+      color: #fff;
+      text-align: center;
+      font-size: 1.05rem;
+      text-transform: uppercase;
+    }
+
+    .shopping-button:hover {
+      background: color-mix(in srgb, var(--check) 82%, white);
     }
 
     .theme-brutal .tool-button {
@@ -721,6 +743,19 @@
       gap: 10px;
     }
 
+    .shopping-list-editor {
+      min-height: min(58vh, 520px);
+      resize: vertical;
+      line-height: 1.45;
+      font-size: 1.05rem;
+      white-space: pre-wrap;
+    }
+
+    .save-note {
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
     .capture-item {
       padding: 13px;
       border: 1px solid var(--line);
@@ -873,6 +908,7 @@
       }
 
       .present-panel,
+      .shopping-panel,
       .expenses-panel,
       .minimum-panel,
       .capture-panel {
@@ -883,6 +919,7 @@
       .calendar-panel,
       .present-panel,
       .turn-panel,
+      .shopping-panel,
       .expenses-panel,
       .minimum-panel,
       .capture-panel,
@@ -1053,14 +1090,20 @@
         </div>
       </section>
 
+      <aside class="panel shopping-panel">
+        <div class="panel-body">
+          <button class="tool-button shopping-button" id="openShoppingList" type="button">LISTA DE LA COMPRA</button>
+        </div>
+      </aside>
+
       <section class="panel calendar-panel">
         <div class="panel-title">
           <h2>Calendario de guardias</h2>
         </div>
         <div class="panel-body">
           <div class="calendar-toolbar">
-            <label>
-              Guardia de referencia
+            <label class="keep-case">
+              GUARDIA DE REFERENCIA (Cambiar si hay saltos)
               <input id="cycleStart" type="date">
             </label>
             <label>
@@ -1154,6 +1197,25 @@
     </div>
   </section>
 
+  <section class="capture-screen" id="shoppingListScreen" aria-hidden="true">
+    <div class="capture-sheet">
+      <div class="capture-head">
+        <div>
+          <h2>LISTA DE LA COMPRA</h2>
+          <p class="capture-meta" id="shoppingListMeta"></p>
+        </div>
+        <div class="capture-actions">
+          <button class="tool-button" id="closeShoppingList" type="button">Cerrar</button>
+        </div>
+      </div>
+      <label>
+        Productos
+        <textarea class="shopping-list-editor" id="shoppingListText" spellcheck="false" placeholder="Escribe aquí la compra de esta guardia..."></textarea>
+      </label>
+      <p class="save-note" id="shoppingListSaveNote">Se guarda automáticamente.</p>
+    </div>
+  </section>
+
   <script>
     const expenseTypes = [
       { key: "breakfast", label: "ALMUERZO", meal: "breakfast" },
@@ -1197,7 +1259,8 @@
         lunch: { buyerAmounts: [0, 0, 0], buyers: [2, -1, -1] },
         dinner: { buyerAmounts: [0, 0, 0], buyers: [5, -1, -1] }
       },
-      minimumCharge: 2
+      minimumCharge: 2,
+      shoppingList: ""
     };
 
     let supabase = null;
@@ -1207,6 +1270,7 @@
     let activeGuardDate = "";
     let guardLocked = false;
     let paymentStatus = {};
+    let shoppingListNoteTimer = null;
     let cookingMembersVisible = false;
     let cookingGroups = {
       1: ["Galisteo", "Migue", "Mora"],
@@ -1306,6 +1370,7 @@
       });
 
       if (state.minimumCharge === undefined) state.minimumCharge = 2;
+      if (typeof state.shoppingList !== "string") state.shoppingList = "";
     }
 
     function applySavedState(savedState) {
@@ -1313,10 +1378,12 @@
       state.people = clone(savedState.people || state.people);
       state.expenses = clone(savedState.expenses || state.expenses);
       state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
+      state.shoppingList = typeof savedState.shoppingList === "string" ? savedState.shoppingList : "";
       guardLocked = savedState.locked === true;
       paymentStatus = clone(savedState.paymentStatus || {});
       normalizeStateShape();
       $("#minimumCharge").value = state.minimumCharge;
+      $("#shoppingListText").value = state.shoppingList;
       rerender();
     }
 
@@ -1337,6 +1404,7 @@
           dinner: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] }
         },
         minimumCharge: 2,
+        shoppingList: "",
         locked: false,
         paymentStatus: {}
       };
@@ -1352,6 +1420,7 @@
         people: clone(state.people),
         expenses: clone(state.expenses),
         minimumCharge: state.minimumCharge,
+        shoppingList: state.shoppingList,
         locked: guardLocked,
         paymentStatus: clone(paymentStatus)
       };
@@ -1745,6 +1814,46 @@
     function closeCaptureScreen() {
       $("#captureScreen").classList.remove("is-open");
       $("#captureScreen").setAttribute("aria-hidden", "true");
+    }
+
+    function renderShoppingListScreen() {
+      const station = $("#station").value.trim() || "Parque Campanar";
+      const date = formatDateForDisplay($("#date").value);
+      $("#shoppingListMeta").textContent = [station, date].filter(Boolean).join(" · ");
+      $("#shoppingListText").value = state.shoppingList || "";
+      $("#shoppingListSaveNote").textContent = "Se guarda automáticamente.";
+    }
+
+    async function openShoppingListScreen() {
+      const button = $("#openShoppingList");
+      button.disabled = true;
+      try {
+        renderShoppingListScreen();
+        $("#shoppingListScreen").classList.add("is-open");
+        $("#shoppingListScreen").setAttribute("aria-hidden", "false");
+        $("#shoppingListText").focus();
+        if (supabase) {
+          const loaded = await loadGuardFromSupabase({ quiet: true, resetIfMissing: false });
+          if (loaded) renderShoppingListScreen();
+        }
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function closeShoppingListScreen() {
+      $("#shoppingListScreen").classList.remove("is-open");
+      $("#shoppingListScreen").setAttribute("aria-hidden", "true");
+    }
+
+    function scheduleShoppingListSave() {
+      state.shoppingList = $("#shoppingListText").value;
+      $("#shoppingListSaveNote").textContent = "Guardando...";
+      scheduleSave();
+      clearTimeout(shoppingListNoteTimer);
+      shoppingListNoteTimer = setTimeout(() => {
+        $("#shoppingListSaveNote").textContent = "Guardado automáticamente.";
+      }, 900);
     }
 
     function openGroupsScreen() {
@@ -2255,6 +2364,9 @@
 
     $("#openCapture").addEventListener("click", openCaptureScreen);
     $("#closeCapture").addEventListener("click", closeCaptureScreen);
+    $("#openShoppingList").addEventListener("click", openShoppingListScreen);
+    $("#closeShoppingList").addEventListener("click", closeShoppingListScreen);
+    $("#shoppingListText").addEventListener("input", scheduleShoppingListSave);
     $("#toggleCookingMembers").addEventListener("click", toggleCookingGroupMembers);
     $("#openGroups").addEventListener("click", openGroupsScreen);
     $("#closeGroups").addEventListener("click", closeGroupsScreen);
@@ -2270,6 +2382,7 @@
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") {
         closeCaptureScreen();
+        closeShoppingListScreen();
         closeGroupsScreen();
       }
     });
