@@ -26,13 +26,15 @@ Railway usara el mismo comando de arranque.
 ## Funciones actuales
 
 - Gastos por almuerzo, pan, comida y cena.
-- Hasta 3 compradores por cada gasto.
+- Hasta 3 compradores por almuerzo, comida y cena, con importe separado por comprador.
+- Un comprador para pan.
 - Control de presentes por guardia.
 - Gasto minimo editable.
 - Liquidacion directa entre companeros.
-- Calendario de guardias con ciclo de 5 dias.
+- Calendario de guardias con ciclo de 5 dias desde el 29/05/2026.
 - Guardado local en el navegador y guardado compartido opcional con Supabase.
 - Historial de guardias guardadas.
+- Compras previas para guardias futuras: se selecciona la fecha de guardia y queda guardado para liquidar ese dia.
 - Pantalla limpia para captura de liquidaciones.
 - Banner de Bitcoin con precio BTC/EUR desde Binance.
 

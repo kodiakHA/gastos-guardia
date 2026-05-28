@@ -95,19 +95,17 @@
     }
 
     .left-stack {
-      display: grid;
-      gap: 14px;
+      display: contents;
     }
 
-    .calendar-panel {
-      grid-column: 2;
-      grid-row: 2;
-    }
-
-    .history-panel {
-      grid-column: 3;
-      grid-row: 2;
-    }
+    .present-panel { grid-column: 1; grid-row: 1; order: 1; }
+    .turn-panel { grid-column: 2 / 4; grid-row: 1; order: 2; }
+    .expenses-panel { grid-column: 1; grid-row: 2; order: 3; }
+    .minimum-panel { grid-column: 2; grid-row: 2; order: 4; }
+    .capture-panel { grid-column: 3; grid-row: 2; order: 5; }
+    .calendar-panel { grid-column: 1 / 3; grid-row: 3; order: 6; }
+    .results-panel { grid-column: 3; grid-row: 3; order: 7; }
+    .history-panel { grid-column: 1 / -1; grid-row: 4; order: 8; }
 
     header {
       display: grid;
@@ -274,19 +272,31 @@
 
     .expense-row {
       display: grid;
-      grid-template-columns: minmax(92px, 1fr) 96px minmax(120px, 1fr);
+      grid-template-columns: minmax(92px, .65fr) minmax(0, 2fr);
       gap: 8px;
-      align-items: end;
+      align-items: start;
     }
 
     .buyer-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 8px;
     }
 
     .buyer-grid label {
       min-width: 0;
+    }
+
+    .buyer-slot {
+      display: grid;
+      gap: 7px;
+    }
+
+    .buyer-slot-title {
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 500;
+      text-transform: uppercase;
     }
 
     .stacked-actions {
@@ -779,11 +789,17 @@
         grid-row: span 1;
       }
 
-      .results-panel {
-        grid-column: 1 / -1;
+      .present-panel,
+      .expenses-panel,
+      .minimum-panel,
+      .capture-panel {
+        grid-column: 1;
+        grid-row: auto;
       }
 
+      .turn-panel,
       .calendar-panel,
+      .results-panel,
       .history-panel {
         grid-column: 1 / -1;
         grid-row: auto;
@@ -810,11 +826,7 @@
       }
 
       .expense-row {
-        grid-template-columns: 1fr 90px;
-      }
-
-      .expense-row .buyer-grid {
-        grid-column: 1 / -1;
+        grid-template-columns: 1fr;
       }
 
       .buyer-grid,
@@ -876,14 +888,14 @@
 
     <section class="shell" aria-label="Pantalla principal de reparto">
       <div class="left-stack">
-        <aside class="panel">
+        <aside class="panel expenses-panel">
           <div class="panel-title">
             <h2>Gastos</h2>
           </div>
           <div class="panel-body" id="expenses"></div>
         </aside>
 
-        <aside class="panel">
+        <aside class="panel minimum-panel">
           <div class="panel-title">
             <h2>Gasto mínimo</h2>
           </div>
@@ -895,7 +907,7 @@
           </div>
         </aside>
 
-        <aside class="panel">
+        <aside class="panel present-panel">
           <div class="panel-title">
             <h2>Presentes</h2>
           </div>
@@ -905,7 +917,7 @@
           </div>
         </aside>
 
-        <aside class="panel">
+        <aside class="panel capture-panel">
           <div class="panel-title">
             <h2>Pantalla de gastos</h2>
           </div>
@@ -924,7 +936,7 @@
         </div>
       </div>
 
-      <section class="panel">
+      <section class="panel turn-panel">
         <div class="panel-title">
           <h2>Turno del día</h2>
         </div>
@@ -1039,9 +1051,12 @@
     const STORAGE_KEY = "pena-campanar-current-guard";
     const SUPABASE_CONFIG_KEY = "pena-campanar-supabase";
     const CYCLE_START_KEY = "pena-campanar-cycle-start";
+    const CYCLE_START_VERSION_KEY = "pena-campanar-cycle-start-version";
+    const CYCLE_START_VERSION = "2026-05-29";
     const HISTORY_LIMIT = 12;
     const DEFAULT_SUPABASE_URL = "https://fkwtwopvmvimskftyidg.supabase.co";
     const DEFAULT_SUPABASE_KEY = "sb_publishable_vK7rcjE30eGUmRQCW2I-iQ_4jFUbOJe";
+    const DEFAULT_CYCLE_START = "2026-05-29";
 
     const state = {
       people: [
@@ -1061,10 +1076,10 @@
         { name: "Mora", present: false, breakfast: false, bread: false, lunch: false, dinner: false }
       ],
       expenses: {
-        breakfast: { amount: 0, buyers: [0, -1, -1] },
-        bread: { amount: 0, buyers: [1] },
-        lunch: { amount: 0, buyers: [2, -1, -1] },
-        dinner: { amount: 0, buyers: [5, -1, -1] }
+        breakfast: { buyerAmounts: [0, 0, 0], buyers: [0, -1, -1] },
+        bread: { buyerAmounts: [0], buyers: [1] },
+        lunch: { buyerAmounts: [0, 0, 0], buyers: [2, -1, -1] },
+        dinner: { buyerAmounts: [0, 0, 0], buyers: [5, -1, -1] }
       },
       minimumCharge: 2
     };
@@ -1073,6 +1088,7 @@
     let syncTimer = null;
     let remoteUpdateInProgress = false;
     let guardChannel = null;
+    let activeGuardDate = "";
     const memoryStorage = {};
 
     const money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
@@ -1131,6 +1147,20 @@
       return typeKey === "bread" ? 1 : 3;
     }
 
+    function getBuyerAmounts(expense, slots) {
+      if (Array.isArray(expense.buyerAmounts)) {
+        return expense.buyerAmounts.slice(0, slots).concat([0, 0, 0]).slice(0, slots);
+      }
+      const amounts = Array(slots).fill(0);
+      amounts[0] = expense.amount ?? 0;
+      return amounts;
+    }
+
+    function expenseTotal(expense) {
+      return getBuyerAmounts(expense, getExpenseBuyers(expense).length)
+        .reduce((sum, amount) => sum + parseAmount(amount), 0);
+    }
+
     function normalizeStateShape() {
       state.people = state.people.map(person => ({
         name: person.name || "",
@@ -1145,7 +1175,7 @@
         const expense = state.expenses[type.key] || { amount: 0, buyers: [-1, -1, -1] };
         const slots = buyerSlotCount(type.key);
         state.expenses[type.key] = {
-          amount: expense.amount ?? 0,
+          buyerAmounts: getBuyerAmounts(expense, slots),
           buyers: getExpenseBuyers(expense).slice(0, slots).concat([-1, -1, -1]).slice(0, slots)
         };
       });
@@ -1161,6 +1191,30 @@
       normalizeStateShape();
       $("#minimumCharge").value = state.minimumCharge;
       rerender();
+    }
+
+    function blankGuardPayload() {
+      return {
+        people: state.people.map(person => ({
+          name: person.name || "",
+          present: false,
+          breakfast: false,
+          bread: false,
+          lunch: false,
+          dinner: false
+        })),
+        expenses: {
+          breakfast: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] },
+          bread: { buyerAmounts: [0], buyers: [-1] },
+          lunch: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] },
+          dinner: { buyerAmounts: [0, 0, 0], buyers: [-1, -1, -1] }
+        },
+        minimumCharge: 2
+      };
+    }
+
+    function startBlankGuard() {
+      applySavedState(blankGuardPayload());
     }
 
     function currentPayload() {
@@ -1235,10 +1289,11 @@
 
     function normalizeExpenseBuyers() {
       const presentPeople = presentIndexes();
-      Object.values(state.expenses).forEach(expense => {
+      Object.entries(state.expenses).forEach(([key, expense]) => {
+        const slots = buyerSlotCount(key);
         expense.buyers = getExpenseBuyers(expense).map(value => presentPeople.includes(Number(value)) ? Number(value) : -1);
         if (!presentPeople.length) {
-          expense.buyers = [-1, -1, -1];
+          expense.buyers = Array(slots).fill(-1);
         } else if (!expense.buyers.some(index => index >= 0)) {
           expense.buyers[0] = presentPeople[0];
         }
@@ -1249,26 +1304,24 @@
       normalizeExpenseBuyers();
       $("#expenses").innerHTML = expenseTypes.map(type => {
         const expense = state.expenses[type.key];
+        const slots = buyerSlotCount(type.key);
+        const amounts = getBuyerAmounts(expense, slots);
         return `
           <div class="expense-row">
             <div class="expense-name">${type.label}</div>
-            <label>
-              Importe
-              <input data-expense="${type.key}" data-field="amount" inputmode="decimal" value="${expense.amount}">
-            </label>
             <div class="buyer-grid" aria-label="Compradores de ${type.label}">
-              ${getExpenseBuyers(expense).slice(0, buyerSlotCount(type.key)).map((buyer, buyerSlot) => `
-                <label>
-                  ${buyerSlotCount(type.key) === 1 ? "Compró" : `Compró ${buyerSlot + 1}`}
+              ${getExpenseBuyers(expense).slice(0, slots).map((buyer, buyerSlot) => `
+                <div class="buyer-slot">
+                  <div class="buyer-slot-title">${slots === 1 ? "Comprador" : `Comprador ${buyerSlot + 1}`}</div>
                   <select data-expense="${type.key}" data-field="buyers" data-buyer-slot="${buyerSlot}">${renderBuyerOptions(buyer)}</select>
-                </label>
+                  <input data-expense="${type.key}" data-field="buyerAmounts" data-buyer-slot="${buyerSlot}" inputmode="decimal" value="${amounts[buyerSlot]}" aria-label="Importe de ${type.label} comprador ${buyerSlot + 1}">
+                </div>
               `).join("")}
             </div>
           </div>
         `;
       }).join("");
     }
-
     function renderPeople() {
       $("#people").innerHTML = state.people.map((person, index) => `
         <tr class="${isPresent(person) ? "is-present" : "is-absent"}">
@@ -1299,18 +1352,22 @@
 
       expenseTypes.forEach(type => {
         const expense = state.expenses[type.key];
-        const amount = parseAmount(expense.amount);
+        const buyerAmounts = getBuyerAmounts(expense, buyerSlotCount(type.key)).map(parseAmount);
+        const amount = buyerAmounts.reduce((sum, buyerAmount) => sum + buyerAmount, 0);
         totalSpent += amount;
 
         if (!presentPeople.length && amount) {
           warnings.push("Marca al menos una persona presente para poder repartir los gastos.");
         }
 
-        const buyers = uniqueNumbers(getExpenseBuyers(expense)).filter(index => state.people[index] && isPresent(state.people[index]));
-        if (buyers.length) {
-          const paidShare = amount / buyers.length;
-          buyers.forEach(index => {
-            paid[index] += paidShare;
+        const buyers = getExpenseBuyers(expense);
+        const validPaidAmounts = buyerAmounts.filter((buyerAmount, slot) => buyerAmount && state.people[buyers[slot]] && isPresent(state.people[buyers[slot]]));
+        if (validPaidAmounts.length) {
+          buyerAmounts.forEach((buyerAmount, slot) => {
+            const buyer = buyers[slot];
+            if (buyerAmount && state.people[buyer] && isPresent(state.people[buyer])) {
+              paid[buyer] += buyerAmount;
+            }
           });
         } else if (amount) {
           warnings.push(`${type.label} tiene comprador no presente; selecciona una persona presente.`);
@@ -1437,10 +1494,22 @@
         : `<article class="capture-item">No hay compañeros presentes para liquidar.</article>`;
     }
 
-    function openCaptureScreen() {
-      renderCaptureScreen();
-      $("#captureScreen").classList.add("is-open");
-      $("#captureScreen").setAttribute("aria-hidden", "false");
+    async function openCaptureScreen() {
+      const button = $("#openCapture");
+      button.disabled = true;
+      try {
+        renderCaptureScreen();
+        clearTimeout(syncTimer);
+        if (supabase) {
+          await saveGuardToSupabase({ quiet: true });
+        } else {
+          saveLocalSnapshot();
+        }
+        $("#captureScreen").classList.add("is-open");
+        $("#captureScreen").setAttribute("aria-hidden", "false");
+      } finally {
+        button.disabled = false;
+      }
     }
 
     function closeCaptureScreen() {
@@ -1595,6 +1664,16 @@
       return { difference, settlements, totalDue, totalSpent };
     }
 
+    function buildGuardRow(identity = guardIdentity()) {
+      return {
+        ...identity,
+        payload: currentPayload(),
+        totals: calculationSummary(),
+        present_count: presentIndexes().length,
+        updated_at: new Date().toISOString()
+      };
+    }
+
     function saveLocalSnapshot() {
       const snapshot = {
         ...guardIdentity(),
@@ -1608,8 +1687,13 @@
       if (remoteUpdateInProgress) return;
       saveLocalSnapshot();
       clearTimeout(syncTimer);
+      const row = buildGuardRow();
       syncTimer = setTimeout(() => {
-        if (supabase) saveGuardToSupabase({ quiet: true });
+        if (supabase) {
+          supabase.upsertGuard(row)
+            .then(() => loadHistory())
+            .catch(error => setStatus(getSupabaseErrorMessage(error), "danger"));
+        }
       }, 700);
     }
 
@@ -1628,7 +1712,7 @@
         await supabase.testConnection();
         writeStoredValue(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
         setStatus("Conectado. Las guardias se guardarán para todo el grupo.", "ok");
-        await loadGuardFromSupabase({ quiet: true });
+        await loadGuardFromSupabase({ quiet: true, resetIfMissing: false });
         await loadHistory();
       } catch (error) {
         supabase = null;
@@ -1639,25 +1723,20 @@
     async function saveGuardToSupabase(options = {}) {
       if (!supabase) {
         setStatus("Conecta Supabase antes de guardar para el grupo.", "danger");
-        return;
+        return false;
       }
 
       const identity = guardIdentity();
-      const summary = calculationSummary();
-      const row = {
-        ...identity,
-        payload: currentPayload(),
-        totals: summary,
-        present_count: presentIndexes().length,
-        updated_at: new Date().toISOString()
-      };
+      const row = buildGuardRow(options.identity || identity);
 
       try {
         await supabase.upsertGuard(row);
         if (!options.quiet) setStatus("Guardia guardada en Supabase.", "ok");
         await loadHistory();
+        return true;
       } catch (error) {
         setStatus(getSupabaseErrorMessage(error), "danger");
+        return false;
       }
     }
 
@@ -1671,17 +1750,24 @@
       try {
         const data = await supabase.getGuard(identity);
         if (!data?.payload) {
+          if (options.resetIfMissing) {
+            remoteUpdateInProgress = true;
+            startBlankGuard();
+            remoteUpdateInProgress = false;
+          }
           if (!options.quiet) setStatus("No hay guardia guardada para esa fecha.", "");
-          return;
+          return false;
         }
 
         remoteUpdateInProgress = true;
         applySavedState(data.payload);
         remoteUpdateInProgress = false;
         if (!options.quiet) setStatus("Guardia cargada desde Supabase.", "ok");
+        return true;
       } catch (error) {
         remoteUpdateInProgress = false;
         setStatus(getSupabaseErrorMessage(error), "danger");
+        return false;
       }
     }
 
@@ -1766,6 +1852,32 @@
       return "";
     }
 
+    async function selectGuardDate(isoDate, options = {}) {
+      const previousIdentity = {
+        guard_date: activeGuardDate || $("#date").value || todayIso(),
+        station: $("#station").value.trim() || "Parque Campanar"
+      };
+      if (supabase && previousIdentity.guard_date && previousIdentity.guard_date !== isoDate) {
+        clearTimeout(syncTimer);
+        await saveGuardToSupabase({ quiet: true, identity: previousIdentity });
+      }
+
+      $("#date").value = isoDate;
+      activeGuardDate = isoDate;
+      $("#calendarMonth").value = isoDate.slice(0, 7);
+      renderCalendar();
+
+      if (supabase) {
+        await loadGuardFromSupabase({
+          quiet: options.quiet ?? true,
+          resetIfMissing: true
+        });
+      } else {
+        startBlankGuard();
+      }
+      subscribeToCurrentGuard();
+    }
+
     function rerender() {
       renderExpenses();
       renderPeople();
@@ -1780,8 +1892,9 @@
       const personIndex = target.dataset.person;
 
       if (expenseKey) {
-        if (target.dataset.field === "amount") {
-          state.expenses[expenseKey].amount = target.value;
+        if (target.dataset.field === "buyerAmounts") {
+          const slot = Number(target.dataset.buyerSlot);
+          state.expenses[expenseKey].buyerAmounts[slot] = target.value;
         }
         calculate();
         scheduleSave();
@@ -1814,13 +1927,7 @@
     $("#saveGuard").addEventListener("click", () => saveGuardToSupabase());
     $("#loadGuard").addEventListener("click", () => loadGuardFromSupabase());
     $("#todayGuard").addEventListener("click", () => {
-      $("#date").value = todayIso();
-      $("#calendarMonth").value = todayIso().slice(0, 7);
-      rerender();
-      if (supabase) {
-        loadGuardFromSupabase({ quiet: true });
-        subscribeToCurrentGuard();
-      }
+      selectGuardDate(todayIso());
     });
 
     document.addEventListener("keydown", event => {
@@ -1828,13 +1935,7 @@
     });
 
     $("#date").addEventListener("change", () => {
-      $("#calendarMonth").value = $("#date").value.slice(0, 7);
-      rerender();
-      saveLocalSnapshot();
-      if (supabase) {
-        loadGuardFromSupabase({ quiet: true });
-        subscribeToCurrentGuard();
-      }
+      selectGuardDate($("#date").value);
     });
 
     $("#station").addEventListener("input", () => {
@@ -1879,23 +1980,13 @@
 
       const historyButton = event.target.closest("[data-history-date]");
       if (historyButton) {
-        $("#date").value = historyButton.dataset.historyDate;
         $("#station").value = historyButton.dataset.historyStation;
-        $("#calendarMonth").value = historyButton.dataset.historyDate.slice(0, 7);
-        loadGuardFromSupabase();
-        subscribeToCurrentGuard();
+        selectGuardDate(historyButton.dataset.historyDate, { quiet: false });
       }
 
       const calendarButton = event.target.closest("[data-calendar-date]");
       if (calendarButton) {
-        $("#date").value = calendarButton.dataset.calendarDate;
-        $("#calendarMonth").value = calendarButton.dataset.calendarDate.slice(0, 7);
-        rerender();
-        saveLocalSnapshot();
-        if (supabase) {
-          loadGuardFromSupabase({ quiet: true });
-          subscribeToCurrentGuard();
-        }
+        selectGuardDate(calendarButton.dataset.calendarDate);
       }
     });
 
@@ -1918,9 +2009,14 @@
 
     const savedSnapshot = readJson(STORAGE_KEY);
     $("#date").value = savedSnapshot?.guard_date || todayIso();
+    activeGuardDate = $("#date").value;
     $("#station").value = savedSnapshot?.station || $("#station").value;
     $("#calendarMonth").value = $("#date").value.slice(0, 7);
-    $("#cycleStart").value = readStoredValue(CYCLE_START_KEY) || $("#date").value;
+    if (readStoredValue(CYCLE_START_VERSION_KEY) !== CYCLE_START_VERSION) {
+      writeStoredValue(CYCLE_START_KEY, DEFAULT_CYCLE_START);
+      writeStoredValue(CYCLE_START_VERSION_KEY, CYCLE_START_VERSION);
+    }
+    $("#cycleStart").value = readStoredValue(CYCLE_START_KEY) || DEFAULT_CYCLE_START;
     if (savedSnapshot?.payload) applySavedState(savedSnapshot.payload);
     $("#minimumCharge").value = state.minimumCharge;
     rerender();
