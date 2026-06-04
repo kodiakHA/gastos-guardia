@@ -118,6 +118,34 @@
     body.has-pending-payments .results-panel { grid-row: 8; order: 9; }
     body.has-pending-payments .history-panel { grid-row: 8; order: 10; }
 
+    .panel.calendar-panel {
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, .84), rgba(255, 255, 255, .52)),
+        url("Fotos/Espuma%20Luna.jpeg") right 44% / cover;
+    }
+
+    .calendar-panel .panel-body {
+      background: transparent;
+    }
+
+    .calendar-heading {
+      margin: 0;
+      color: var(--text);
+      text-shadow: 0 1px 0 rgba(255, 255, 255, .75);
+    }
+
+    .calendar-panel input,
+    .calendar-panel .tool-button,
+    .calendar-day {
+      background: rgba(255, 255, 255, .68);
+      backdrop-filter: blur(2px);
+    }
+
+    .calendar-panel input,
+    .calendar-panel .tool-button {
+      border-color: rgba(153, 194, 222, .82);
+    }
+
     header {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(240px, 320px) auto;
@@ -182,10 +210,12 @@
       display: grid;
       gap: 8px;
       align-self: end;
-      min-height: 78px;
+      min-height: 118px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: color-mix(in srgb, var(--panel) 92%, white);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .74)),
+        url("Fotos/Cumple%20Laki.jpeg") center 46% / cover;
       padding: 13px 14px;
     }
 
@@ -467,7 +497,6 @@
 
     .calendar-day {
       border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--panel) 92%, white);
       color: var(--text);
       cursor: pointer;
     }
@@ -480,7 +509,7 @@
 
     .calendar-day.is-duty {
       border-color: var(--check);
-      background: color-mix(in srgb, var(--check) 16%, var(--panel));
+      background: color-mix(in srgb, var(--check) 24%, rgba(255, 255, 255, .64));
       color: var(--check);
       font-weight: 700;
     }
@@ -1141,10 +1170,8 @@
       </aside>
 
       <section class="panel calendar-panel">
-        <div class="panel-title">
-          <h2>Calendario de guardias</h2>
-        </div>
         <div class="panel-body">
+          <h2 class="calendar-heading">Calendario de guardias</h2>
           <div class="calendar-toolbar">
             <label class="keep-case">
               GUARDIA DE REFERENCIA (Cambiar si hay saltos)
