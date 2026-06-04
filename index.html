@@ -101,24 +101,22 @@
     .payment-panel { grid-column: 1 / -1; grid-row: 1; order: 1; }
     .calendar-panel { grid-column: 1 / -1; grid-row: 1; order: 1; }
     .shopping-panel { grid-column: 1 / -1; grid-row: 2; order: 2; }
-    .present-panel { grid-column: 1; grid-row: 3; order: 3; }
-    .turn-panel { grid-column: 2 / 4; grid-row: 3; order: 4; }
-    .expenses-panel { grid-column: 1; grid-row: 4; order: 5; }
-    .minimum-panel { grid-column: 2; grid-row: 4; order: 6; }
-    .capture-panel { grid-column: 3; grid-row: 4; order: 7; }
-    .results-panel { grid-column: 1 / 3; grid-row: 5; order: 8; }
-    .history-panel { grid-column: 3; grid-row: 5; order: 9; }
+    .turn-panel { grid-column: 1 / -1; grid-row: 3; order: 3; }
+    .expenses-panel { grid-column: 1 / -1; grid-row: 4; order: 5; }
+    .minimum-panel { grid-column: 1 / -1; grid-row: 5; order: 6; }
+    .capture-panel { grid-column: 1 / -1; grid-row: 6; order: 7; }
+    .results-panel { grid-column: 1 / 3; grid-row: 7; order: 8; }
+    .history-panel { grid-column: 3; grid-row: 7; order: 9; }
 
     body.has-pending-payments .payment-panel { grid-row: 1; order: 1; }
     body.has-pending-payments .calendar-panel { grid-row: 2; order: 2; }
     body.has-pending-payments .shopping-panel { grid-row: 3; order: 3; }
-    body.has-pending-payments .present-panel { grid-row: 4; order: 4; }
-    body.has-pending-payments .turn-panel { grid-row: 4; order: 5; }
+    body.has-pending-payments .turn-panel { grid-row: 4; order: 4; }
     body.has-pending-payments .expenses-panel { grid-row: 5; order: 6; }
-    body.has-pending-payments .minimum-panel { grid-row: 5; order: 7; }
-    body.has-pending-payments .capture-panel { grid-row: 5; order: 8; }
-    body.has-pending-payments .results-panel { grid-row: 6; order: 9; }
-    body.has-pending-payments .history-panel { grid-row: 6; order: 10; }
+    body.has-pending-payments .minimum-panel { grid-row: 6; order: 7; }
+    body.has-pending-payments .capture-panel { grid-row: 7; order: 8; }
+    body.has-pending-payments .results-panel { grid-row: 8; order: 9; }
+    body.has-pending-payments .history-panel { grid-row: 8; order: 10; }
 
     header {
       display: grid;
@@ -182,13 +180,20 @@
 
     .cooking-card {
       display: grid;
-      gap: 6px;
+      gap: 8px;
       align-self: end;
       min-height: 78px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: color-mix(in srgb, var(--panel) 92%, white);
       padding: 13px 14px;
+    }
+
+    .cooking-card-head {
+      display: flex;
+      gap: 12px;
+      align-items: start;
+      justify-content: space-between;
     }
 
     .cooking-card strong,
@@ -208,6 +213,28 @@
       text-transform: uppercase;
       cursor: pointer;
       text-align: left;
+    }
+
+    .present-inline {
+      display: grid;
+      gap: 1px;
+      justify-items: end;
+      min-width: 74px;
+      color: var(--check);
+      text-align: right;
+    }
+
+    .present-inline strong {
+      color: var(--check);
+      font-size: 1.9rem;
+      line-height: .9;
+    }
+
+    .present-inline span {
+      color: var(--muted);
+      font-size: .72rem;
+      line-height: 1;
+      text-transform: uppercase;
     }
 
     .cooking-card span {
@@ -345,6 +372,15 @@
       background: color-mix(in srgb, var(--check) 82%, white);
     }
 
+    .settlement-button {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .settlement-button:hover {
+      background: color-mix(in srgb, var(--accent) 88%, #111);
+    }
+
     .theme-brutal .tool-button {
       border-width: 2px;
       box-shadow: 3px 3px 0 var(--text);
@@ -353,14 +389,14 @@
 
     .expense-row {
       display: grid;
-      grid-template-columns: minmax(110px, .35fr) minmax(0, 2fr);
+      grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
       gap: 14px;
       align-items: start;
     }
 
     .buyer-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: 8px;
     }
 
@@ -918,7 +954,6 @@
         grid-row: span 1;
       }
 
-      .present-panel,
       .shopping-panel,
       .expenses-panel,
       .minimum-panel,
@@ -928,7 +963,6 @@
       }
 
       .calendar-panel,
-      .present-panel,
       .turn-panel,
       .shopping-panel,
       .expenses-panel,
@@ -1013,7 +1047,13 @@
         <input id="date" type="hidden">
         <input id="station" type="hidden" value="Parque Campanar">
         <div class="cooking-card">
-          <button class="group-toggle" id="toggleCookingMembers" type="button">GRUPO DE COCINA</button>
+          <div class="cooking-card-head">
+            <button class="group-toggle" id="toggleCookingMembers" type="button">GRUPO DE COCINA</button>
+            <div class="present-inline">
+              <strong id="presentCount">0</strong>
+              <span>Presentes</span>
+            </div>
+          </div>
           <span id="cookingGroupMembers" hidden>Selecciona una guardia.</span>
           <button class="tool-button" id="openGroups" type="button">Editar grupos</button>
         </div>
@@ -1041,22 +1081,9 @@
           </div>
         </aside>
 
-        <aside class="panel present-panel">
-          <div class="panel-title">
-            <h2>Presentes</h2>
-          </div>
-          <div class="panel-body">
-            <strong class="big-count" id="presentCount">0</strong>
-            <span class="big-count-label">Compañeros presentes</span>
-          </div>
-        </aside>
-
         <aside class="panel capture-panel">
-          <div class="panel-title">
-            <h2>Pantalla de gastos</h2>
-          </div>
           <div class="panel-body">
-            <button class="tool-button primary" id="openCapture" type="button">Abrir liquidación</button>
+            <button class="tool-button shopping-button settlement-button" id="openCapture" type="button">ABRIR LIQUIDACIÓN</button>
           </div>
         </aside>
 
