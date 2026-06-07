@@ -1,0 +1,15 @@
+{
+  "name": "Peña Empastre Kampanar",
+  "short_name": "Peña Kampanar",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#c83b2e",
+  "background_color": "#eef7fb",
+  "display": "standalone"
+}
