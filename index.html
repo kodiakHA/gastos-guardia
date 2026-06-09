@@ -1339,7 +1339,6 @@
     let guardChannel = null;
     let activeGuardDate = "";
     let guardLocked = false;
-    let pendingPaymentsVisible = false;
     let paymentStatus = {};
     let shoppingListNoteTimer = null;
     let cookingMembersVisible = false;
@@ -1451,7 +1450,6 @@
       state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
       state.shoppingList = typeof savedState.shoppingList === "string" ? savedState.shoppingList : "";
       guardLocked = savedState.locked === true;
-      pendingPaymentsVisible = false;
       paymentStatus = clone(savedState.paymentStatus || {});
       normalizeStateShape();
       $("#minimumCharge").value = state.minimumCharge;
@@ -1512,6 +1510,10 @@
 
     function paymentKey(payment) {
       return `${payment.from}::${payment.to}::${Math.round(payment.amount * 100)}`;
+    }
+
+    function hasPendingPayments(settlements = getCalculation().settlements) {
+      return guardLocked && settlements.some(payment => paymentStatus[paymentKey(payment)] !== true);
     }
 
     function positiveModulo(value, divisor) {
@@ -1867,7 +1869,6 @@
         }
         if (saved) {
           guardLocked = true;
-          pendingPaymentsVisible = true;
           getCalculation().settlements.forEach(payment => {
             const key = paymentKey(payment);
             if (paymentStatus[key] !== true) paymentStatus[key] = false;
@@ -2137,7 +2138,7 @@
       $("#minimumCharge").disabled = guardLocked;
       $("#addPerson").disabled = guardLocked;
       $("#newPerson").disabled = guardLocked;
-      const showPaymentPanel = guardLocked && pendingPaymentsVisible;
+      const showPaymentPanel = hasPendingPayments();
       document.body.classList.toggle("has-pending-payments", showPaymentPanel);
       $("#paymentPanel").hidden = !showPaymentPanel;
       $("#unlockGuard").hidden = !showPaymentPanel;
@@ -2165,7 +2166,6 @@
 
     function unlockGuardForCorrection() {
       guardLocked = false;
-      pendingPaymentsVisible = false;
       paymentStatus = {};
       calculate();
       syncLockedControls();
@@ -2491,6 +2491,7 @@
       if (target.dataset.paymentKey) {
         paymentStatus[target.dataset.paymentKey] = target.checked;
         renderPendingPayments();
+        syncLockedControls();
         scheduleSave();
         return;
       }
