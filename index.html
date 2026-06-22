@@ -1193,8 +1193,9 @@
       </section>
 
       <aside class="panel shopping-panel">
-        <div class="panel-body">
+        <div class="panel-body" style="display: grid; gap: 12px;">
           <button class="tool-button shopping-button" id="openShoppingList" type="button">LISTA DE LA COMPRA</button>
+          <button class="tool-button shopping-button" id="openMiscList" type="button">LISTA COSAS VARIAS</button>
         </div>
       </aside>
 
@@ -1286,6 +1287,25 @@
     </div>
   </section>
 
+  <section class="capture-screen" id="miscListScreen" aria-hidden="true">
+    <div class="capture-sheet">
+      <div class="capture-head">
+        <div>
+          <h2>LISTA COSAS VARIAS</h2>
+          <p class="capture-meta">Lista compartida permanente para todo el grupo</p>
+        </div>
+        <div class="capture-actions">
+          <button class="tool-button" id="closeMiscList" type="button">Cerrar</button>
+        </div>
+      </div>
+      <label>
+        Cosas varias
+        <textarea class="shopping-list-editor" id="miscListText" spellcheck="false" placeholder="Escribe aquí cualquier cosa que quieras compartir con el grupo..."></textarea>
+      </label>
+      <p class="save-note" id="miscListSaveNote">Se guarda automáticamente.</p>
+    </div>
+  </section>
+
   <script>
     const expenseTypes = [
       { key: "breakfast", label: "ALMUERZO", meal: "breakfast" },
@@ -1295,6 +1315,7 @@
     ];
 
     const STORAGE_KEY = "pena-campanar-current-guard";
+    const MISC_LIST_STORAGE_KEY = "pena-campanar-misc-list";
     const SUPABASE_CONFIG_KEY = "pena-campanar-supabase";
     const CYCLE_START_KEY = "pena-campanar-cycle-start";
     const CYCLE_START_VERSION_KEY = "pena-campanar-cycle-start-version";
@@ -1305,6 +1326,8 @@
     const DEFAULT_CYCLE_START = "2026-05-29";
     const CONFIG_GUARD_DATE = "1900-01-01";
     const CONFIG_STATION = "__config__";
+    const MISC_LIST_GUARD_DATE = "1900-01-02";
+    const MISC_LIST_STATION = "__misc_list__";
 
     const state = {
       people: [
@@ -1341,6 +1364,9 @@
     let guardLocked = false;
     let paymentStatus = {};
     let shoppingListNoteTimer = null;
+    let miscList = "";
+    let miscListSaveTimer = null;
+    let miscListNoteTimer = null;
     let cookingMembersVisible = false;
     let cookingGroups = {
       1: ["Galisteo", "Migue", "Mora"],
@@ -1930,6 +1956,74 @@
       }, 900);
     }
 
+    function renderMiscListScreen() {
+      $("#miscListText").value = miscList;
+      $("#miscListSaveNote").textContent = "Se guarda automáticamente.";
+    }
+
+    async function loadMiscList() {
+      if (!supabase) return false;
+      try {
+        const data = await supabase.getMiscList();
+        if (typeof data?.payload?.miscList === "string") {
+          miscList = data.payload.miscList;
+          writeStoredValue(MISC_LIST_STORAGE_KEY, miscList);
+        }
+        return true;
+      } catch (error) {
+        $("#miscListSaveNote").textContent = getSupabaseErrorMessage(error);
+        return false;
+      }
+    }
+
+    async function openMiscListScreen() {
+      const button = $("#openMiscList");
+      button.disabled = true;
+      try {
+        renderMiscListScreen();
+        $("#miscListScreen").classList.add("is-open");
+        $("#miscListScreen").setAttribute("aria-hidden", "false");
+        if (supabase) {
+          await loadMiscList();
+          renderMiscListScreen();
+        }
+        $("#miscListText").focus();
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function closeMiscListScreen() {
+      $("#miscListScreen").classList.remove("is-open");
+      $("#miscListScreen").setAttribute("aria-hidden", "true");
+    }
+
+    function scheduleMiscListSave() {
+      miscList = $("#miscListText").value;
+      writeStoredValue(MISC_LIST_STORAGE_KEY, miscList);
+      $("#miscListSaveNote").textContent = "Guardando...";
+      clearTimeout(miscListSaveTimer);
+      miscListSaveTimer = setTimeout(async () => {
+        if (supabase) {
+          try {
+            await supabase.upsertMiscList(miscList);
+          } catch (error) {
+            $("#miscListSaveNote").textContent = getSupabaseErrorMessage(error);
+            return;
+          }
+        }
+        $("#miscListSaveNote").textContent = supabase
+          ? "Guardado automáticamente para todo el grupo."
+          : "Guardado en este dispositivo.";
+      }, 700);
+      clearTimeout(miscListNoteTimer);
+      miscListNoteTimer = setTimeout(() => {
+        if ($("#miscListSaveNote").textContent === "Guardando...") {
+          $("#miscListSaveNote").textContent = "Guardado automáticamente.";
+        }
+      }, 1200);
+    }
+
     function openGroupsScreen() {
       renderGroupEditor();
       $("#groupsScreen").classList.add("is-open");
@@ -2091,6 +2185,20 @@
             present_count: 0,
             updated_at: new Date().toISOString()
           });
+        },
+        async getMiscList() {
+          const rows = await request(`guardias?select=*&guard_date=eq.${MISC_LIST_GUARD_DATE}&station=eq.${MISC_LIST_STATION}&limit=1`);
+          return Array.isArray(rows) ? rows[0] : null;
+        },
+        async upsertMiscList(value) {
+          return this.upsertGuard({
+            guard_date: MISC_LIST_GUARD_DATE,
+            station: MISC_LIST_STATION,
+            payload: { miscList: value },
+            totals: {},
+            present_count: 0,
+            updated_at: new Date().toISOString()
+          });
         }
       };
     }
@@ -2189,6 +2297,7 @@
         writeStoredValue(SUPABASE_CONFIG_KEY, JSON.stringify({ url, key }));
         setStatus("Conectado. Las guardias se guardarán para todo el grupo.", "ok");
         await loadCookingGroups();
+        await loadMiscList();
         await loadGuardFromSupabase({ quiet: true, resetIfMissing: false });
         await loadHistory();
       } catch (error) {
@@ -2444,6 +2553,9 @@
     $("#openShoppingList").addEventListener("click", openShoppingListScreen);
     $("#closeShoppingList").addEventListener("click", closeShoppingListScreen);
     $("#shoppingListText").addEventListener("input", scheduleShoppingListSave);
+    $("#openMiscList").addEventListener("click", openMiscListScreen);
+    $("#closeMiscList").addEventListener("click", closeMiscListScreen);
+    $("#miscListText").addEventListener("input", scheduleMiscListSave);
     $("#toggleCookingMembers").addEventListener("click", toggleCookingGroupMembers);
     $("#openGroups").addEventListener("click", openGroupsScreen);
     $("#closeGroups").addEventListener("click", closeGroupsScreen);
@@ -2460,6 +2572,7 @@
       if (event.key === "Escape") {
         closeCaptureScreen();
         closeShoppingListScreen();
+        closeMiscListScreen();
         closeGroupsScreen();
       }
     });
@@ -2552,6 +2665,7 @@
     $("#supabaseKey").value = savedConfig.key || DEFAULT_SUPABASE_KEY;
 
     const savedSnapshot = readJson(STORAGE_KEY);
+    miscList = readStoredValue(MISC_LIST_STORAGE_KEY) || "";
     const initialDate = todayIso();
     $("#date").value = initialDate;
     activeGuardDate = $("#date").value;
