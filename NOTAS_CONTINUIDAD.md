@@ -29,12 +29,12 @@
 
 ## Companeros cargados
 
-Acedo, Almela, Blesa, Chema, Espin, Galisteo, Migue, Noelia, Laki, Vladi, Poveda, Pla, Nole y Mora.
+Acedo, Almela, Blesa, Chema, Picolo, Galisteo, Migue, Noelia, Laki, Vladi, Poveda, Pla, Nole y Mora.
 
 ## Grupos de cocina iniciales
 
 - Grupo 1: Galisteo, Migue, Mora.
-- Grupo 2: Noelia, Laki, Espin, Blesa.
+- Grupo 2: Noelia, Laki, Picolo, Blesa.
 - Grupo 3: Poveda, Vladi, Pla.
 - Grupo 4: Chema, Nole, Almela.
 

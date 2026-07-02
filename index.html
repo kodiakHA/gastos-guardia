@@ -1335,7 +1335,7 @@
         { name: "Almela", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
         { name: "Blesa", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
         { name: "Chema", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Espín", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+        { name: "Picolo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
         { name: "Galisteo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
         { name: "Migue", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
         { name: "Noelia", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
@@ -1370,7 +1370,7 @@
     let cookingMembersVisible = false;
     let cookingGroups = {
       1: ["Galisteo", "Migue", "Mora"],
-      2: ["Noelia", "Laki", "Espín", "Blesa"],
+      2: ["Noelia", "Laki", "Picolo", "Blesa"],
       3: ["Poveda", "Vladi", "Pla"],
       4: ["Chema", "Nole", "Almela"]
     };
@@ -1472,6 +1472,9 @@
     function applySavedState(savedState) {
       if (!savedState) return;
       state.people = clone(savedState.people || state.people);
+      state.people.forEach(person => {
+        if (["Espín", "Espin"].includes(String(person.name).trim())) person.name = "Picolo";
+      });
       state.expenses = clone(savedState.expenses || state.expenses);
       state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
       state.shoppingList = typeof savedState.shoppingList === "string" ? savedState.shoppingList : "";
@@ -1556,7 +1559,10 @@
       const normalized = {};
       [1, 2, 3, 4].forEach(groupNumber => {
         normalized[groupNumber] = Array.isArray(groups[groupNumber])
-          ? groups[groupNumber].map(name => String(name).trim()).filter(Boolean)
+          ? groups[groupNumber]
+            .map(name => String(name).trim())
+            .map(name => ["Espín", "Espin"].includes(name) ? "Picolo" : name)
+            .filter(Boolean)
           : [];
       });
       return normalized;
