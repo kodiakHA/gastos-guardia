@@ -2390,6 +2390,24 @@
             }
           });
         },
+        async hideGuardFromHistory(identity) {
+          const existing = await this.getGuard(identity);
+          return this.upsertGuard({
+            ...identity,
+            payload: {
+              ...(existing?.payload || {}),
+              locked: false,
+              deletedFromHistory: true
+            },
+            totals: {
+              ...(existing?.totals || {}),
+              locked: false,
+              deletedFromHistory: true
+            },
+            present_count: existing?.present_count || 0,
+            updated_at: new Date().toISOString()
+          });
+        },
         async getHistory(station) {
           return request(`guardias?select=guard_date,station,present_count,totals,updated_at&station=eq.${encodeURIComponent(station)}&totals->>locked=eq.true&order=guard_date.desc&limit=${HISTORY_LIMIT}`);
         },
@@ -2645,6 +2663,10 @@
         renderRecoverHistoryList();
 
         list.hidden = recoverHistoryOpen;
+        if (recoverHistoryOpen) {
+          list.innerHTML = "";
+          return;
+        }
         list.innerHTML = visibleRows.length
           ? visibleRows.map(row => {
             const spent = money.format(Number(row.totals?.totalSpent || 0));
@@ -2738,10 +2760,15 @@
       try {
         clearTimeout(syncTimer);
         deletedGuardKeys.add(key);
-        const deletedRows = await supabase.deleteGuard(identity);
-        if (Array.isArray(deletedRows) && deletedRows.length === 0) {
-          throw new Error("Supabase no ha encontrado esa guardia para borrarla.");
+        let deleted = false;
+        try {
+          const deletedRows = await supabase.deleteGuard(identity);
+          deleted = !Array.isArray(deletedRows) || deletedRows.length > 0;
+        } catch (deleteError) {
+          deleted = false;
         }
+
+        if (!deleted) await supabase.hideGuardFromHistory(identity);
         pendingHistoryDeleteKey = "";
         if (guardKey(guardIdentity()) === key) {
           guardLocked = false;
