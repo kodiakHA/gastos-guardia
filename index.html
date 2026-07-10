@@ -2656,7 +2656,9 @@
 
       try {
         const data = await supabase.getHistory(station);
-        historyRows = Array.isArray(data) ? data : [];
+        historyRows = Array.isArray(data)
+          ? data.filter(row => row.totals?.deletedFromHistory !== true && row.payload?.deletedFromHistory !== true)
+          : [];
         const visibleRows = historyRows.slice(0, 7);
         $("#recoverGuardHistory").hidden = historyRows.length <= 7 && !recoverHistoryOpen;
         $("#recoverGuardHistory").textContent = recoverHistoryOpen ? "Ocultar guardias" : "Recuperar guardia";
@@ -2676,9 +2678,6 @@
                 <strong>${formatDateForDisplay(row.guard_date)} · ${escapeHtml(row.station)}</strong>
                 <span>${row.present_count || 0} presentes · ${spent} gastados</span>
                 </button>
-                <div class="history-actions">
-                <button class="tool-button history-action danger" type="button" data-history-delete="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">Eliminar</button>
-                </div>
               </article>
             `;
           }).join("")
