@@ -530,15 +530,26 @@
       overflow: auto;
     }
 
-    .history-item {
+    .history-card {
       display: grid;
-      gap: 3px;
+      gap: 8px;
       width: 100%;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: var(--panel);
       color: var(--text);
       padding: 10px;
+      text-align: left;
+    }
+
+    .history-item {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 0;
       text-align: left;
       cursor: pointer;
     }
@@ -551,6 +562,42 @@
       color: var(--muted);
       font-size: .84rem;
       line-height: 1.35;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .history-action {
+      width: auto;
+      min-height: 32px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: .78rem;
+      font-weight: 700;
+    }
+
+    .history-action.danger {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, white);
+    }
+
+    .history-recover-panel {
+      border: 1px dashed #93c5fd;
+      border-radius: var(--radius);
+      background: #eff6ff;
+      padding: 10px;
+    }
+
+    .history-filter {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 8px;
+      text-transform: none;
     }
 
     .payment-list {
@@ -588,8 +635,51 @@
 
     .people-tools {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 8px;
+      align-items: end;
+    }
+
+    .people-scope-tabs {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .68);
+    }
+
+    .people-scope-tabs input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .people-scope-tabs label {
+      text-transform: none;
+    }
+
+    .people-scope-tabs span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: .76rem;
+      font-weight: 650;
+      text-transform: none;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+      white-space: nowrap;
+    }
+
+    .people-scope-tabs input:checked + span {
+      background: #dbeafe;
+      color: #1d4ed8;
+      box-shadow: 0 8px 18px rgba(59, 130, 246, .16);
     }
 
     .people-table-wrap {
@@ -1033,7 +1123,8 @@
       }
 
       .buyer-grid,
-      .calendar-toolbar {
+      .calendar-toolbar,
+      .people-tools {
         grid-template-columns: 1fr;
       }
 
@@ -1140,6 +1231,16 @@
               Nuevo compañero
               <input id="newPerson" type="text" placeholder="Nombre">
             </label>
+            <div class="people-scope-tabs" role="radiogroup" aria-label="Tipo de cambio de compañeros">
+              <label>
+                <input type="radio" name="peopleScope" value="today" checked>
+                <span>Sólo hoy</span>
+              </label>
+              <label>
+                <input type="radio" name="peopleScope" value="permanent">
+                <span>Permanente</span>
+              </label>
+            </div>
             <button class="tool-button primary" id="addPerson" type="button">Añadir</button>
           </div>
 
@@ -1226,11 +1327,13 @@
       <aside class="panel results-panel history-panel">
         <div class="panel-title">
           <h2>Historial</h2>
+          <button class="tool-button history-action" id="recoverGuardHistory" type="button">Recuperar guardia</button>
         </div>
         <div class="panel-body">
           <div class="history-list" id="historyList">
             <div class="notice">Las liquidaciones cerradas aparecerán aquí.</div>
           </div>
+          <div class="history-list" id="recoverHistoryList" hidden></div>
         </div>
       </aside>
 
@@ -1320,7 +1423,7 @@
     const CYCLE_START_KEY = "pena-campanar-cycle-start";
     const CYCLE_START_VERSION_KEY = "pena-campanar-cycle-start-version";
     const CYCLE_START_VERSION = "2026-05-29";
-    const HISTORY_LIMIT = 12;
+    const HISTORY_LIMIT = 80;
     const DEFAULT_SUPABASE_URL = "https://fkwtwopvmvimskftyidg.supabase.co";
     const DEFAULT_SUPABASE_KEY = "sb_publishable_vK7rcjE30eGUmRQCW2I-iQ_4jFUbOJe";
     const DEFAULT_CYCLE_START = "2026-05-29";
@@ -1328,24 +1431,27 @@
     const CONFIG_STATION = "__config__";
     const MISC_LIST_GUARD_DATE = "1900-01-02";
     const MISC_LIST_STATION = "__misc_list__";
+    const PEOPLE_CONFIG_VERSION = "2026-07-10-galisteo-permanente";
+
+    const DEFAULT_PEOPLE = [
+      { name: "Acedo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Almela", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Blesa", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Chema", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Picolo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Galisteo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Migue", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Noelia", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Laki", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Vladi", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Poveda", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Pla", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Nole", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
+      { name: "Mora", present: false, breakfast: false, bread: false, lunch: false, dinner: false }
+    ];
 
     const state = {
-      people: [
-        { name: "Acedo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Almela", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Blesa", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Chema", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Picolo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Galisteo", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Migue", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Noelia", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Laki", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Vladi", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Poveda", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Pla", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Nole", present: false, breakfast: false, bread: false, lunch: false, dinner: false },
-        { name: "Mora", present: false, breakfast: false, bread: false, lunch: false, dinner: false }
-      ],
+      people: DEFAULT_PEOPLE.map(person => ({ ...person })),
       expenses: {
         breakfast: { buyerAmounts: [0, 0, 0], buyers: [0, -1, -1] },
         bread: { buyerAmounts: [0], buyers: [1] },
@@ -1368,6 +1474,12 @@
     let miscListSaveTimer = null;
     let miscListNoteTimer = null;
     let cookingMembersVisible = false;
+    let pendingHistoryDeleteKey = "";
+    let recoverHistoryOpen = false;
+    let historyFilterDate = "";
+    let historyRows = [];
+    const deletedGuardKeys = new Set();
+    let permanentPeople = DEFAULT_PEOPLE.map(person => ({ ...person }));
     let cookingGroups = {
       1: ["Galisteo", "Migue", "Mora"],
       2: ["Noelia", "Laki", "Picolo", "Blesa"],
@@ -1378,6 +1490,7 @@
 
     const money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
     const bitcoinMoney = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+    const nameSorter = new Intl.Collator("es", { sensitivity: "base", numeric: true });
     const $ = (selector) => document.querySelector(selector);
 
     function clone(value) {
@@ -1423,6 +1536,69 @@
       return [...new Set(values.map(Number).filter(value => Number.isInteger(value) && value >= 0))];
     }
 
+    function normalizePersonName(name) {
+      const cleanName = String(name || "").trim();
+      return ["Espín", "Espin", "EspÃ­n"].includes(cleanName) ? "Picolo" : cleanName;
+    }
+
+    function createPerson(name, present = false) {
+      return {
+        name: normalizePersonName(name),
+        present,
+        breakfast: false,
+        bread: false,
+        lunch: false,
+        dinner: false
+      };
+    }
+
+    function normalizePermanentPeople(people = permanentPeople) {
+      const seen = new Set();
+      return people
+        .map(person => normalizePersonName(typeof person === "string" ? person : person?.name))
+        .filter(Boolean)
+        .filter(name => {
+          const key = name.toLocaleLowerCase("es-ES");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((a, b) => nameSorter.compare(a, b))
+        .map(name => createPerson(name, false));
+    }
+
+    function hasPersonNamed(people, name) {
+      const key = normalizePersonName(name).toLocaleLowerCase("es-ES");
+      return people.some(person => normalizePersonName(person.name).toLocaleLowerCase("es-ES") === key);
+    }
+
+    function getPeopleChangeScope() {
+      return document.querySelector('input[name="peopleScope"]:checked')?.value || "today";
+    }
+
+    function syncPermanentPeopleIntoCurrentGuard() {
+      permanentPeople = normalizePermanentPeople(permanentPeople);
+      permanentPeople.forEach(person => {
+        if (!hasPersonNamed(state.people, person.name)) {
+          state.people.push(createPerson(person.name, false));
+        }
+      });
+      normalizeStateShape();
+    }
+
+    function sortPeopleAlphabetically() {
+      const indexedPeople = state.people.map((person, oldIndex) => ({ person, oldIndex }));
+      indexedPeople.sort((a, b) => nameSorter.compare(a.person.name || "", b.person.name || ""));
+
+      const oldToNew = new Map();
+      indexedPeople.forEach((entry, newIndex) => oldToNew.set(entry.oldIndex, newIndex));
+      state.people = indexedPeople.map(entry => entry.person);
+
+      Object.values(state.expenses).forEach(expense => {
+        expense.buyers = getExpenseBuyers(expense).map(index => oldToNew.has(index) ? oldToNew.get(index) : index);
+      });
+    }
+
     function getExpenseBuyers(expense) {
       if (Array.isArray(expense.buyers)) return expense.buyers;
       return [Number.isInteger(expense.buyer) ? expense.buyer : -1, -1, -1];
@@ -1448,7 +1624,7 @@
 
     function normalizeStateShape() {
       state.people = state.people.map(person => ({
-        name: person.name || "",
+        name: normalizePersonName(person.name),
         present: person.present === true,
         breakfast: person.breakfast === true,
         bread: person.bread === true,
@@ -1467,20 +1643,19 @@
 
       if (state.minimumCharge === undefined) state.minimumCharge = 2;
       if (typeof state.shoppingList !== "string") state.shoppingList = "";
+      sortPeopleAlphabetically();
     }
 
     function applySavedState(savedState) {
       if (!savedState) return;
       state.people = clone(savedState.people || state.people);
-      state.people.forEach(person => {
-        if (["Espín", "Espin"].includes(String(person.name).trim())) person.name = "Picolo";
-      });
       state.expenses = clone(savedState.expenses || state.expenses);
       state.minimumCharge = savedState.minimumCharge ?? state.minimumCharge;
       state.shoppingList = typeof savedState.shoppingList === "string" ? savedState.shoppingList : "";
       guardLocked = savedState.locked === true;
       paymentStatus = clone(savedState.paymentStatus || {});
       normalizeStateShape();
+      syncPermanentPeopleIntoCurrentGuard();
       $("#minimumCharge").value = state.minimumCharge;
       $("#shoppingListText").value = state.shoppingList;
       rerender();
@@ -1488,7 +1663,7 @@
 
     function blankGuardPayload() {
       return {
-        people: state.people.map(person => ({
+        people: permanentPeople.map(person => ({
           name: person.name || "",
           present: false,
           breakfast: false,
@@ -1531,6 +1706,10 @@
       return new Date(date - offset).toISOString().slice(0, 10);
     }
 
+    function currentMonthPrefix() {
+      return todayIso().slice(0, 7);
+    }
+
     function parseAmount(value) {
       const normalized = String(value || "").replace(",", ".");
       const amount = Number.parseFloat(normalized);
@@ -1561,7 +1740,7 @@
         normalized[groupNumber] = Array.isArray(groups[groupNumber])
           ? groups[groupNumber]
             .map(name => String(name).trim())
-            .map(name => ["Espín", "Espin"].includes(name) ? "Picolo" : name)
+            .map(name => normalizePersonName(name))
             .filter(Boolean)
           : [];
       });
@@ -1634,9 +1813,9 @@
 
     function renderBuyerOptions(selected, allowEmpty = true) {
       const presentPeople = presentIndexes();
-      const emptyOption = allowEmpty ? `<option value="-1">Sin comprador</option>` : "";
+      const emptyOption = allowEmpty ? `<option value="-1">-</option>` : "";
       if (!presentPeople.length) {
-        return `<option value="-1">Sin presentes</option>`;
+        return `<option value="-1">-</option>`;
       }
 
       const selectedValue = presentPeople.includes(selected) ? selected : -1;
@@ -1654,8 +1833,6 @@
         expense.buyers = getExpenseBuyers(expense).map(value => presentPeople.includes(Number(value)) ? Number(value) : -1);
         if (!presentPeople.length) {
           expense.buyers = Array(slots).fill(-1);
-        } else if (!expense.buyers.some(index => index >= 0)) {
-          expense.buyers[0] = presentPeople[0];
         }
       });
     }
@@ -1666,6 +1843,7 @@
         const expense = state.expenses[type.key];
         const slots = buyerSlotCount(type.key);
         const amounts = getBuyerAmounts(expense, slots);
+        const displayAmount = value => parseAmount(value) > 0 ? value : "-";
         return `
           <div class="expense-row">
             <div class="expense-name">${type.label}</div>
@@ -1674,7 +1852,7 @@
                 <div class="buyer-slot">
                   <div class="buyer-slot-title">${slots === 1 ? "Comprador" : `Comprador ${buyerSlot + 1}`}</div>
                   <select data-expense="${type.key}" data-field="buyers" data-buyer-slot="${buyerSlot}" ${guardLocked ? "disabled" : ""}>${renderBuyerOptions(buyer)}</select>
-                  <input data-expense="${type.key}" data-field="buyerAmounts" data-buyer-slot="${buyerSlot}" inputmode="decimal" value="${amounts[buyerSlot]}" ${guardLocked ? "disabled" : ""} aria-label="Importe de ${type.label} comprador ${buyerSlot + 1}">
+                  <input data-expense="${type.key}" data-field="buyerAmounts" data-buyer-slot="${buyerSlot}" inputmode="decimal" value="${displayAmount(amounts[buyerSlot])}" ${guardLocked ? "disabled" : ""} aria-label="Importe de ${type.label} comprador ${buyerSlot + 1}">
                 </div>
               `).join("")}
             </div>
@@ -2117,6 +2295,32 @@
       });
     }
 
+    function removePersonAtIndex(index) {
+      state.people.splice(index, 1);
+      syncBuyerIndexesAfterRemove(index);
+    }
+
+    function removePersonFromCookingGroups(name) {
+      const key = normalizePersonName(name).toLocaleLowerCase("es-ES");
+      Object.keys(cookingGroups).forEach(groupNumber => {
+        cookingGroups[groupNumber] = (cookingGroups[groupNumber] || [])
+          .filter(member => normalizePersonName(member).toLocaleLowerCase("es-ES") !== key);
+      });
+    }
+
+    async function applyPermanentPeopleChange(change) {
+      try {
+        await saveSharedConfig();
+        if (supabase) {
+          setStatus(`Cambio permanente guardado: ${change}.`, "ok");
+        } else {
+          setStatus(`Cambio permanente aplicado en este navegador. Conecta Supabase para compartirlo con todos.`, "");
+        }
+      } catch (error) {
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
     function setStatus(message, type = "") {
       const status = $("#syncStatus");
       status.textContent = message;
@@ -2175,6 +2379,16 @@
           const rows = await request(`guardias?select=*&guard_date=eq.${guardDate}&station=eq.${station}&limit=1`);
           return Array.isArray(rows) ? rows[0] : null;
         },
+        async deleteGuard(identity) {
+          const guardDate = encodeURIComponent(identity.guard_date);
+          const station = encodeURIComponent(identity.station);
+          return request(`guardias?guard_date=eq.${guardDate}&station=eq.${station}`, {
+            method: "DELETE",
+            headers: {
+              Prefer: "return=minimal"
+            }
+          });
+        },
         async getHistory(station) {
           return request(`guardias?select=guard_date,station,present_count,totals,updated_at&station=eq.${encodeURIComponent(station)}&totals->>locked=eq.true&order=guard_date.desc&limit=${HISTORY_LIMIT}`);
         },
@@ -2216,6 +2430,10 @@
       };
     }
 
+    function guardKey(identity) {
+      return `${identity.guard_date}::${identity.station}`;
+    }
+
     function calculationSummary() {
       const { difference, settlements, totalDue, totalSpent } = getCalculation();
       return { difference, settlements, totalDue, totalSpent };
@@ -2252,6 +2470,9 @@
       $("#minimumCharge").disabled = guardLocked;
       $("#addPerson").disabled = guardLocked;
       $("#newPerson").disabled = guardLocked;
+      document.querySelectorAll('input[name="peopleScope"]').forEach(control => {
+        control.disabled = guardLocked;
+      });
       const showPaymentPanel = hasPendingPayments();
       document.body.classList.toggle("has-pending-payments", showPaymentPanel);
       $("#paymentPanel").hidden = !showPaymentPanel;
@@ -2316,11 +2537,26 @@
       if (!supabase) return;
       try {
         const data = await supabase.getConfig();
-        cookingGroups = normalizeCookingGroups(data?.payload?.cookingGroups || cookingGroups);
+        const payload = data?.payload || {};
+        cookingGroups = normalizeCookingGroups(payload.cookingGroups || cookingGroups);
+        permanentPeople = normalizePermanentPeople(payload.people || payload.permanentPeople || permanentPeople);
+        if (payload.peopleVersion !== PEOPLE_CONFIG_VERSION && !hasPersonNamed(permanentPeople, "Galisteo")) {
+          permanentPeople.push(createPerson("Galisteo", false));
+          await saveSharedConfig();
+        }
+        syncPermanentPeopleIntoCurrentGuard();
         renderCookingGroupSummary();
         renderGroupEditor();
       } catch (error) {
         setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function saveSharedConfig() {
+      permanentPeople = normalizePermanentPeople(permanentPeople);
+      cookingGroups = normalizeCookingGroups(cookingGroups);
+      if (supabase) {
+        await supabase.upsertConfig({ cookingGroups, people: permanentPeople, peopleVersion: PEOPLE_CONFIG_VERSION });
       }
     }
 
@@ -2337,9 +2573,7 @@
       renderCookingGroupSummary();
       renderGroupEditor();
 
-      if (supabase) {
-        await supabase.upsertConfig({ cookingGroups });
-      }
+      await saveSharedConfig();
     }
 
     async function saveGuardToSupabase(options = {}) {
@@ -2399,24 +2633,130 @@
       if (!supabase) return;
       const { station } = guardIdentity();
       const list = $("#historyList");
+      const recoverList = $("#recoverHistoryList");
 
       try {
         const data = await supabase.getHistory(station);
+        historyRows = Array.isArray(data) ? data : [];
+        const visibleRows = historyRows.slice(0, 7);
+        $("#recoverGuardHistory").hidden = historyRows.length <= 7 && !recoverHistoryOpen;
+        $("#recoverGuardHistory").textContent = recoverHistoryOpen ? "Ocultar guardias" : "Recuperar guardia";
+        renderRecoverHistoryList();
 
-        list.innerHTML = data.length
-          ? data.map(row => {
+        list.innerHTML = visibleRows.length
+          ? visibleRows.map(row => {
             const spent = money.format(Number(row.totals?.totalSpent || 0));
+            const key = `${row.guard_date}::${row.station}`;
+            const isPendingDelete = pendingHistoryDeleteKey === key;
             return `
+              <article class="history-card">
               <button class="history-item" type="button" data-history-date="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">
                 <strong>${formatDateForDisplay(row.guard_date)} · ${escapeHtml(row.station)}</strong>
                 <span>${row.present_count || 0} presentes · ${spent} gastados</span>
-              </button>
+                </button>
+                <div class="history-actions">
+                <button class="tool-button history-action danger" type="button" data-history-delete="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">${isPendingDelete ? "Confirmar" : "Eliminar"}</button>
+                </div>
+              </article>
             `;
           }).join("")
           : `<div class="notice">Todavía no hay liquidaciones cerradas.</div>`;
+        recoverList.hidden = !recoverHistoryOpen;
       } catch (error) {
         list.innerHTML = `<div class="notice">${escapeHtml(getSupabaseErrorMessage(error))}</div>`;
+        recoverList.hidden = true;
       }
+    }
+
+    function renderRecoverHistoryList() {
+      const recoverList = $("#recoverHistoryList");
+      if (!recoverList) return;
+
+      if (!recoverHistoryOpen) {
+        recoverList.innerHTML = "";
+        recoverList.hidden = true;
+        return;
+      }
+
+      const filterEnabled = historyRows.length >= 15;
+      const dates = [...new Set(historyRows.map(row => row.guard_date).filter(Boolean))];
+      const filteredRows = historyFilterDate
+        ? historyRows.filter(row => row.guard_date === historyFilterDate)
+        : historyRows;
+      const filterHtml = filterEnabled ? `
+        <label class="history-filter">
+          Filtrar por fecha
+          <select id="historyDateFilter">
+            <option value="">Todas las fechas</option>
+            ${dates.map(date => `<option value="${date}" ${date === historyFilterDate ? "selected" : ""}>${formatDateForDisplay(date)}</option>`).join("")}
+          </select>
+        </label>
+      ` : "";
+
+      recoverList.hidden = false;
+      recoverList.innerHTML = `
+        <div class="history-recover-panel">
+          ${filterHtml}
+          ${filteredRows.length ? filteredRows.map(row => {
+            const spent = money.format(Number(row.totals?.totalSpent || 0));
+            return `
+              <article class="history-card">
+                <button class="history-item" type="button" data-history-recover="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">
+                  <strong>${formatDateForDisplay(row.guard_date)} · ${escapeHtml(row.station)}</strong>
+                  <span>${row.present_count || 0} presentes · ${spent} gastados</span>
+                </button>
+                <div class="history-actions">
+                  <button class="tool-button history-action" type="button" data-history-recover="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">Recuperar</button>
+                </div>
+              </article>
+            `;
+          }).join("") : `<div class="notice">No hay guardias con esa fecha.</div>`}
+        </div>
+      `;
+    }
+
+    async function recoverHistoryGuard(date, station) {
+      $("#station").value = station;
+      await selectGuardDate(date, { quiet: false });
+      recoverHistoryOpen = false;
+      historyFilterDate = "";
+      await loadHistory();
+      setStatus("Guardia recuperada desde el historial.", "ok");
+    }
+
+    async function deleteHistoryGuard(date, station) {
+      if (!supabase) return;
+      const identity = { guard_date: date, station };
+      const key = guardKey(identity);
+
+      if (pendingHistoryDeleteKey !== key) {
+        pendingHistoryDeleteKey = key;
+        await loadHistory();
+        setStatus("Pulsa Confirmar para eliminar esa guardia del historial.", "");
+        return;
+      }
+
+      try {
+        await supabase.deleteGuard(identity);
+        pendingHistoryDeleteKey = "";
+        deletedGuardKeys.add(key);
+        if (guardKey(guardIdentity()) === key) {
+          guardLocked = false;
+          startBlankGuard();
+        }
+        setStatus("Guardia eliminada del historial.", "ok");
+        await loadHistory();
+      } catch (error) {
+        setStatus(getSupabaseErrorMessage(error), "danger");
+      }
+    }
+
+    async function toggleRecoveredHistory() {
+      recoverHistoryOpen = !recoverHistoryOpen;
+      pendingHistoryDeleteKey = "";
+      if (!recoverHistoryOpen) historyFilterDate = "";
+      await loadHistory();
+      setStatus(recoverHistoryOpen ? "Selecciona una guardia de la lista para recuperarla." : "Lista de recuperación cerrada.", "ok");
     }
 
     function subscribeToCurrentGuard() {
@@ -2481,10 +2821,12 @@
         guard_date: activeGuardDate || $("#date").value || todayIso(),
         station: $("#station").value.trim() || "Parque Campanar"
       };
-      if (supabase && previousIdentity.guard_date && previousIdentity.guard_date !== isoDate) {
+      const previousKey = guardKey(previousIdentity);
+      if (supabase && previousIdentity.guard_date && previousIdentity.guard_date !== isoDate && !deletedGuardKeys.has(previousKey)) {
         clearTimeout(syncTimer);
         await saveGuardToSupabase({ quiet: true, identity: previousIdentity });
       }
+      deletedGuardKeys.delete(previousKey);
 
       $("#date").value = isoDate;
       activeGuardDate = isoDate;
@@ -2504,6 +2846,7 @@
     }
 
     function rerender() {
+      normalizeStateShape();
       renderExpenses();
       renderPeople();
       syncSummaryCards();
@@ -2567,6 +2910,7 @@
     $("#closeGroups").addEventListener("click", closeGroupsScreen);
     $("#saveGroups").addEventListener("click", saveGroupsAndClose);
     $("#unlockGuard").addEventListener("click", unlockGuardForCorrection);
+    $("#recoverGuardHistory").addEventListener("click", toggleRecoveredHistory);
     $("#connectSupabase").addEventListener("click", connectSupabase);
     $("#saveGuard").addEventListener("click", () => saveGuardToSupabase());
     $("#loadGuard").addEventListener("click", () => loadGuardFromSupabase());
@@ -2588,6 +2932,8 @@
     });
 
     $("#station").addEventListener("input", () => {
+      recoverHistoryOpen = false;
+      historyFilterDate = "";
       saveLocalSnapshot();
       if (supabase) {
         clearTimeout(syncTimer);
@@ -2615,6 +2961,19 @@
         return;
       }
 
+      if (target.id === "historyDateFilter") {
+        historyFilterDate = target.value;
+        renderRecoverHistoryList();
+        return;
+      }
+
+      if (target.dataset.person !== undefined && target.dataset.field === "name") {
+        normalizeStateShape();
+        rerender();
+        scheduleSave();
+        return;
+      }
+
       if (guardLocked && target.dataset.expense) {
         event.preventDefault();
         return;
@@ -2628,20 +2987,43 @@
       }
     });
 
-    document.body.addEventListener("click", event => {
+    document.body.addEventListener("click", async event => {
       const removeButton = event.target.closest("[data-remove]");
 
       if (removeButton) {
         if (guardLocked) return;
         const index = Number(removeButton.dataset.remove);
-        state.people.splice(index, 1);
-        syncBuyerIndexesAfterRemove(index);
+        const person = state.people[index];
+        if (!person) return;
+        const scope = getPeopleChangeScope();
+        if (scope === "permanent") {
+          const personKey = normalizePersonName(person.name).toLocaleLowerCase("es-ES");
+          permanentPeople = permanentPeople.filter(savedPerson => normalizePersonName(savedPerson.name).toLocaleLowerCase("es-ES") !== personKey);
+          removePersonFromCookingGroups(person.name);
+        }
+        removePersonAtIndex(index);
         rerender();
         scheduleSave();
+        if (scope === "permanent") await applyPermanentPeopleChange(`${person.name} eliminado de la lista`);
+      }
+
+      const historyDeleteButton = event.target.closest("[data-history-delete]");
+      if (historyDeleteButton) {
+        await deleteHistoryGuard(historyDeleteButton.dataset.historyDelete, historyDeleteButton.dataset.historyStation);
+        return;
+      }
+
+      const historyRecoverButton = event.target.closest("[data-history-recover]");
+      if (historyRecoverButton) {
+        await recoverHistoryGuard(historyRecoverButton.dataset.historyRecover, historyRecoverButton.dataset.historyStation);
+        return;
       }
 
       const historyButton = event.target.closest("[data-history-date]");
       if (historyButton) {
+        pendingHistoryDeleteKey = "";
+        recoverHistoryOpen = false;
+        historyFilterDate = "";
         $("#station").value = historyButton.dataset.historyStation;
         selectGuardDate(historyButton.dataset.historyDate, { quiet: false });
       }
@@ -2652,14 +3034,21 @@
       }
     });
 
-    $("#addPerson").addEventListener("click", () => {
+    $("#addPerson").addEventListener("click", async () => {
       if (guardLocked) return;
       const input = $("#newPerson");
-      const name = input.value.trim() || `Compañero ${state.people.length + 1}`;
-      state.people.push({ name, present: true, breakfast: false, bread: false, lunch: false, dinner: false });
+      const name = normalizePersonName(input.value.trim() || `Compañero ${state.people.length + 1}`);
+      const scope = getPeopleChangeScope();
+      if (!hasPersonNamed(state.people, name)) {
+        state.people.push(createPerson(name, true));
+      }
+      if (scope === "permanent" && !hasPersonNamed(permanentPeople, name)) {
+        permanentPeople.push(createPerson(name, false));
+      }
       input.value = "";
       rerender();
       scheduleSave();
+      if (scope === "permanent") await applyPermanentPeopleChange(`${name} añadido a la lista`);
     });
 
     $("#newPerson").addEventListener("keydown", event => {
