@@ -2346,6 +2346,7 @@
       async function request(path, options = {}) {
         const response = await fetch(`${baseUrl}/rest/v1/${path}`, {
           ...options,
+          cache: "no-store",
           headers: {
             ...headers,
             ...(options.headers || {})
@@ -2385,7 +2386,7 @@
           return request(`guardias?guard_date=eq.${guardDate}&station=eq.${station}`, {
             method: "DELETE",
             headers: {
-              Prefer: "return=minimal"
+              Prefer: "return=representation"
             }
           });
         },
@@ -2643,11 +2644,10 @@
         $("#recoverGuardHistory").textContent = recoverHistoryOpen ? "Ocultar guardias" : "Recuperar guardia";
         renderRecoverHistoryList();
 
+        list.hidden = recoverHistoryOpen;
         list.innerHTML = visibleRows.length
           ? visibleRows.map(row => {
             const spent = money.format(Number(row.totals?.totalSpent || 0));
-            const key = `${row.guard_date}::${row.station}`;
-            const isPendingDelete = pendingHistoryDeleteKey === key;
             return `
               <article class="history-card">
               <button class="history-item" type="button" data-history-date="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">
@@ -2655,14 +2655,14 @@
                 <span>${row.present_count || 0} presentes · ${spent} gastados</span>
                 </button>
                 <div class="history-actions">
-                <button class="tool-button history-action danger" type="button" data-history-delete="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">${isPendingDelete ? "Confirmar" : "Eliminar"}</button>
+                <button class="tool-button history-action danger" type="button" data-history-delete="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">Eliminar</button>
                 </div>
               </article>
             `;
           }).join("")
           : `<div class="notice">Todavía no hay liquidaciones cerradas.</div>`;
-        recoverList.hidden = !recoverHistoryOpen;
       } catch (error) {
+        list.hidden = false;
         list.innerHTML = `<div class="notice">${escapeHtml(getSupabaseErrorMessage(error))}</div>`;
         recoverList.hidden = true;
       }
@@ -2707,6 +2707,7 @@
                 </button>
                 <div class="history-actions">
                   <button class="tool-button history-action" type="button" data-history-recover="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">Recuperar</button>
+                  <button class="tool-button history-action danger" type="button" data-history-delete="${row.guard_date}" data-history-station="${escapeHtml(row.station)}">Eliminar</button>
                 </div>
               </article>
             `;
@@ -2728,25 +2729,30 @@
       if (!supabase) return;
       const identity = { guard_date: date, station };
       const key = guardKey(identity);
-
-      if (pendingHistoryDeleteKey !== key) {
-        pendingHistoryDeleteKey = key;
-        await loadHistory();
-        setStatus("Pulsa Confirmar para eliminar esa guardia del historial.", "");
+      const confirmed = window.confirm(`¿Eliminar la guardia del ${formatDateForDisplay(date)}?\n\nEsta acción no se puede deshacer.`);
+      if (!confirmed) {
+        setStatus("Eliminación cancelada.", "");
         return;
       }
 
       try {
-        await supabase.deleteGuard(identity);
-        pendingHistoryDeleteKey = "";
+        clearTimeout(syncTimer);
         deletedGuardKeys.add(key);
+        const deletedRows = await supabase.deleteGuard(identity);
+        if (Array.isArray(deletedRows) && deletedRows.length === 0) {
+          throw new Error("Supabase no ha encontrado esa guardia para borrarla.");
+        }
+        pendingHistoryDeleteKey = "";
         if (guardKey(guardIdentity()) === key) {
           guardLocked = false;
           startBlankGuard();
         }
+        recoverHistoryOpen = false;
+        historyFilterDate = "";
         setStatus("Guardia eliminada del historial.", "ok");
         await loadHistory();
       } catch (error) {
+        deletedGuardKeys.delete(key);
         setStatus(getSupabaseErrorMessage(error), "danger");
       }
     }
