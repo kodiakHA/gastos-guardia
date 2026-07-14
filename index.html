@@ -2888,6 +2888,13 @@
       syncLockedControls();
     }
 
+    document.body.addEventListener("focusin", event => {
+      const target = event.target;
+      if (target.dataset?.field === "buyerAmounts" && target.value === "-") {
+        target.value = "";
+      }
+    });
+
     document.body.addEventListener("input", event => {
       const target = event.target;
       const expenseKey = target.dataset.expense;
