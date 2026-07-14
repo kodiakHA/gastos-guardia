@@ -37,6 +37,8 @@ No se usa React, Vite, Next.js, Express ni servidor Node.
 - `Fotos/`: imagenes usadas por la interfaz.
 - `supabase-setup.sql`: SQL base para crear la tabla `guardias` y sus politicas.
 - `borrar-guardia-*.sql`: scripts puntuales de mantenimiento de datos.
+- `tools/`: scripts de backup/restauracion de Supabase con `pg_dump` y `psql`.
+- `backups/`: destino local de copias, ignorado en Git salvo su `.gitignore`.
 - `Abrir Web Pena Campanar.bat`: acceso rapido local para abrir la web.
 - `NOTAS_CONTINUIDAD.md`: notas internas de continuidad.
 
@@ -81,6 +83,35 @@ La seguridad depende principalmente de Supabase:
 - uso correcto de la clave publica `anon`.
 
 Antes de cambiar el acceso a datos, revisar `supabase-setup.sql` y las politicas activas en Supabase.
+
+## Copias de seguridad
+
+Hay scripts en `tools/` para crear y restaurar copias logicas de la base de datos de Supabase sin Docker:
+
+- `tools/backup.bat`: crea `backups/YYYY-MM-DD_HH-mm-ss/schema.sql` y `backups/YYYY-MM-DD_HH-mm-ss/data.sql` usando `pg_dump`.
+- `tools/restore.bat`: permite elegir una copia y restaurarla con confirmacion previa.
+- `tools/backup-config.example.bat`: plantilla sin secretos para crear la configuracion local.
+- `tools/backup-config.local.bat`: configuracion local ignorada por Git; debe contener la cadena PostgreSQL de Supabase.
+- `tools/README.md`: explica instalacion, conexion recomendada, uso y limitaciones.
+
+Supabase recomienda conexion directa para herramientas como `pg_dump`, migraciones y backup/restore. En Free esa conexion usa IPv6; si tu red no soporta IPv6, usa el Session Pooler, recomendado para redes IPv4. No uses Transaction Pooler para estas copias.
+
+Los scripts fuerzan SSL con `PGSSLMODE=require`, asi que `DATABASE_URL` puede venir con o sin el parametro `sslmode=require`. No guardes contrasenas ni cadenas privadas fuera de `tools/backup-config.local.bat`.
+
+Uso basico:
+
+```bat
+tools\backup.bat
+tools\restore.bat
+```
+
+Requisitos principales:
+
+- PostgreSQL instalado en Windows con `pg_dump` y `psql` disponibles en el `PATH`.
+- `tools\backup-config.local.bat` creado a partir de `tools\backup-config.example.bat`.
+- `DATABASE_URL` configurada con la cadena PostgreSQL de Supabase, preferiblemente Session Pooler si la red no tiene IPv6.
+
+En el plan Free, Supabase recomienda exportar regularmente la base de datos, ya que los backups automaticos diarios del panel son para planes de pago. Los dumps de base de datos no incluyen objetos de Storage API, solo datos de base de datos y metadatos relacionados.
 
 ## Mantenimiento
 
